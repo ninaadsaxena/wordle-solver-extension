@@ -476,16 +476,13 @@ body {
 }
 
 .creator-avatar {
-  width: 56px;
-  height: 56px;
+  width: 72px;
+  height: 72px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #10b981 0%, #3b82f6 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 800;
-  font-size: 20px;
-  color: #ffffff;
+  flex-shrink: 0;
+  object-fit: cover;
+  object-position: top center;
+  border: 2px solid rgba(16, 185, 129, 0.4);
 }
 
 .creator-info h3 {
