@@ -1,17 +1,5 @@
-document.addEventListener('DOMContentLoaded', () => {
-
-
-function loadScript(src) {
-  return new Promise((resolve, reject) => {
-    const s = document.createElement('script');
-    s.src = src;
-    s.onload = resolve;
-    s.onerror = reject;
-    document.head.appendChild(s);
-  });
-}
-
 // ─── Wordle Demo Board Animation ───────────────────────────────────────────
+
 // Mimics real NYT Wordle: letter pop-in when typed, tile flip + color reveal
 // when submitted, bounce on the winning row, then loops.
 
