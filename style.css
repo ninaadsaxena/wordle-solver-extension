@@ -690,3 +690,20 @@ body {
 .faq-answer strong {
   color: #e2e8f0;
 }
+
+/* Demo badge — hidden by default, shown via JS after solve animation */
+#demo-badge {
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+
+/* Inline green link — used in install step text */
+.green-link {
+  color: #10b981;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.green-link:hover {
+  color: #34d399;
+}
+
