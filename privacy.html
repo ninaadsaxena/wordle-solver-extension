@@ -83,7 +83,12 @@
       text-align: center;
       margin-top: 60px;
     }
+
+    .privacy-list {
+      margin: 0 0 16px 24px;
+    }
   </style>
+
 </head>
 <body>
   <div class="container">
@@ -106,11 +111,11 @@
     <p>The extension reads the current state of the NYT Wordle game board (tile letters and colours) solely to compute the next optimal guess. This information is processed locally in your browser and is never transmitted anywhere.</p>
 
     <h2>Third-party API usage</h2>
-    <p>The extension makes requests to the <a href="https://www.datamuse.com/api/" target="_blank">Datamuse public word API</a> (<code>api.datamuse.com</code>) to fetch candidate words matching known letter patterns. These requests contain only letter pattern parameters (e.g. which letters are known or excluded) — no user identity, no account data, and no browsing information is included. Please refer to the <a href="https://www.datamuse.com/api/" target="_blank">Datamuse API documentation</a> for their own data practices.</p>
+    <p>The extension makes requests to the <a href="https://www.datamuse.com/api/" target="_blank" rel="noopener noreferrer">Datamuse public word API</a> (<code>api.datamuse.com</code>) to fetch candidate words matching known letter patterns. These requests contain only letter pattern parameters (e.g. which letters are known or excluded) — no user identity, no account data, and no browsing information is included. Please refer to the <a href="https://www.datamuse.com/api/" target="_blank" rel="noopener noreferrer">Datamuse API documentation</a> for their own data practices.</p>
 
     <h2>Permissions</h2>
     <p>The extension requests the following browser permissions, used exclusively to operate on the NYT Wordle page:</p>
-    <ul style="margin: 0 0 16px 24px;">
+    <ul class="privacy-list">
       <li><strong>activeTab</strong> — to read the Wordle board state on the current tab.</li>
       <li><strong>scripting</strong> — to inject the solver logic into the Wordle game page.</li>
       <li><strong>tabs</strong> — to verify the active tab is the Wordle page before running.</li>
@@ -128,8 +133,8 @@
 
     <h2>Contact</h2>
     <p>If you have any questions about this privacy policy, you can reach the developer at:<br>
-      <a href="https://linkedin.com/in/ninaadsaxena" target="_blank">linkedin.com/in/ninaadsaxena</a> &nbsp;·&nbsp;
-      <a href="https://github.com/ninaadsaxena" target="_blank">github.com/ninaadsaxena</a>
+      <a href="https://linkedin.com/in/ninaadsaxena" target="_blank" rel="noopener noreferrer">linkedin.com/in/ninaadsaxena</a> &nbsp;·&nbsp;
+      <a href="https://github.com/ninaadsaxena" target="_blank" rel="noopener noreferrer">github.com/ninaadsaxena</a>
     </p>
 
     <hr>
