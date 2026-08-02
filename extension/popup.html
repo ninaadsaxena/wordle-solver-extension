@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wordle AI Auto-Solver</title>
+  <link rel="stylesheet" href="popup.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="card">
+    <div class="header">
+      <div class="logo">
+        <span class="tile green">W</span>
+        <span class="tile yellow">O</span>
+        <span class="tile gray">R</span>
+        <span class="tile green">D</span>
+      </div>
+      <h2>Wordle AI Solver</h2>
+      <p class="tagline">Datamuse Entropy Engine</p>
+    </div>
+
+    <div class="status-container">
+      <div id="status-dot" class="status-dot ready"></div>
+      <span id="status-text">Ready to solve</span>
+    </div>
+
+    <button id="run-btn" class="btn primary-btn">
+      <span>🚀 Run Auto-Solver</span>
+    </button>
+
+    <div class="footer">
+      <span>Built by <a href="https://linkedin.com/in/ninaadsaxena" target="_blank">Ninaad Saxena</a></span>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

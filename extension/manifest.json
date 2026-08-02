@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "Wordle AI Auto-Solver",
+  "version": "1.0.0",
+  "description": "An information-entropy & Datamuse AI Wordle solver built right into Chrome.",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Wordle AI Auto-Solver"
+  },
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://www.nytimes.com/games/wordle/*",
+    "https://api.datamuse.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://www.nytimes.com/games/wordle/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

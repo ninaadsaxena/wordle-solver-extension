@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wordle AI Auto-Solver — Free Chrome Extension</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="bg-glow"></div>
+  
+  <!-- Navigation -->
+  <nav class="navbar">
+    <div class="nav-container">
+      <div class="brand">
+        <div class="brand-tiles">
+          <span class="tile green">W</span>
+          <span class="tile yellow">A</span>
+          <span class="tile gray">I</span>
+        </div>
+        <span class="brand-name">Wordle Solver AI</span>
+      </div>
+      <div class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#how-it-works">Installation</a>
+        <a href="#about">Creator</a>
+        <a href="https://github.com/ninaadsaxena" target="_blank" class="github-btn">
+          <svg height="20" width="20" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.28.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+          GitHub
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <section class="hero">
+    <div class="hero-container">
+      <div class="badge">
+        <span class="badge-dot"></span>
+        <span>100% Free Chrome Extension</span>
+      </div>
+      <h1 class="hero-title">Solve Wordle Automatically <br><span class="gradient-text">In Your Browser</span></h1>
+      <p class="hero-description">
+        An AI-powered Information Entropy & Datamuse solver built directly into Chrome. Zero backend servers, no Python setup required.
+      </p>
+
+      <div class="hero-actions">
+        <button id="download-btn" class="cta-btn primary-cta">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Download Extension (.zip)
+        </button>
+        <a href="#how-it-works" class="cta-btn secondary-cta">Installation Guide</a>
+      </div>
+
+      <!-- Preview Mockup -->
+      <div class="mockup-card">
+        <div class="mockup-header">
+          <span class="dot red"></span>
+          <span class="dot yellow"></span>
+          <span class="dot green"></span>
+          <span class="mockup-url">nytimes.com/games/wordle</span>
+        </div>
+        <div class="mockup-body">
+          <div class="wordle-board-demo">
+            <div class="demo-row">
+              <span class="demo-tile gray">S</span>
+              <span class="demo-tile yellow">N</span>
+              <span class="demo-tile gray">A</span>
+              <span class="demo-tile gray">R</span>
+              <span class="demo-tile yellow">E</span>
+            </div>
+            <div class="demo-row">
+              <span class="demo-tile green">P</span>
+              <span class="demo-tile yellow">A</span>
+              <span class="demo-tile gray">T</span>
+              <span class="demo-tile yellow">E</span>
+              <span class="demo-tile yellow">N</span>
+            </div>
+            <div class="demo-row active-row">
+              <span class="demo-tile green">P</span>
+              <span class="demo-tile green">E</span>
+              <span class="demo-tile green">N</span>
+              <span class="demo-tile green">A</span>
+              <span class="demo-tile green">L</span>
+            </div>
+          </div>
+          <div class="solver-overlay-badge">
+            <span>✨ Solved in 3 guesses!</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Section -->
+  <section id="features" class="section">
+    <div class="section-container">
+      <h2 class="section-title">Why Use Wordle AI Solver?</h2>
+      <p class="section-subtitle">Powered by Information Theory & Live Lexicon APIs</p>
+
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">🧠</div>
+          <h3>Shannon Entropy Engine</h3>
+          <p>Calculates expected information gain in bits to maximize letter elimination on every guess.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">🌐</div>
+          <h3>Datamuse Live API</h3>
+          <p>Dynamically queries live pattern matches without needing local dictionary downloads.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">🔄</div>
+          <h3>Mid-Game Resume</h3>
+          <p>Left a game halfway through? The extension reads existing board tiles and resumes seamlessly.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">🛡️</div>
+          <h3>Rejection Auto-Clear</h3>
+          <p>Detects invalid/unaccepted words, clears the row with backspaces, and retries automatically.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3-Step Setup Guide -->
+  <section id="how-it-works" class="section alt-bg">
+    <div class="section-container">
+      <h2 class="section-title">How to Install in 30 Seconds</h2>
+      <p class="section-subtitle">No Chrome Web Store fees or registration required.</p>
+
+      <div class="steps-grid">
+        <div class="step-card">
+          <div class="step-number">01</div>
+          <h3>Download & Extract</h3>
+          <p>Click the download button above to get the extension `.zip` file and extract it on your computer.</p>
+        </div>
+
+        <div class="step-card">
+          <div class="step-number">02</div>
+          <h3>Enable Developer Mode</h3>
+          <p>Open Chrome, navigate to <code>chrome://extensions</code>, and toggle <strong>Developer mode</strong> ON in top-right.</p>
+        </div>
+
+        <div class="step-card">
+          <div class="step-number">03</div>
+          <h3>Load Unpacked</h3>
+          <p>Click <strong>Load unpacked</strong> in the top-left and select the extracted <code>extension</code> folder.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Creator Section -->
+  <section id="about" class="section">
+    <div class="section-container">
+      <div class="creator-card">
+        <div class="creator-header">
+          <div class="creator-avatar">NS</div>
+          <div class="creator-info">
+            <h3>Created by Ninaad Saxena</h3>
+            <p>Software Engineer & AI Enthusiast</p>
+          </div>
+        </div>
+        <p class="creator-bio">
+          Built as an open-source project combining Information Theory (Shannon Entropy) with modern browser automation tools.
+        </p>
+        <div class="creator-links">
+          <a href="https://linkedin.com/in/ninaadsaxena" target="_blank" class="social-link linkedin">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.88 8.56a1.68 1.68 0 0 0 1.68-1.68c0-.93-.75-1.69-1.68-1.69a1.69 1.69 0 0 0-1.69 1.69c0 .93.76 1.68 1.69 1.68m1.39 9.94v-8.37H5.5v8.37h2.77z"/></svg>
+            LinkedIn Profile
+          </a>
+          <a href="https://github.com/ninaadsaxena" target="_blank" class="social-link github">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.1-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33.85 0 1.71.11 2.5.33 1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2z"/></svg>
+            GitHub Projects
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <p>© 2026 Ninaad Saxena — Wordle AI Auto-Solver. Open Source Project.</p>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
