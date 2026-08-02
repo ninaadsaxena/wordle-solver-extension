@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Wordle AI Auto-Solver — Free Chrome Extension</title>
+  <title>Wordle AI Auto-Solver — Free Browser Extension for Chrome, Edge & More</title>
   <link rel="stylesheet" href="style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -26,6 +26,7 @@
       <div class="nav-links">
         <a href="#features">Features</a>
         <a href="#how-it-works">Installation</a>
+        <a href="#faq">FAQ</a>
         <a href="#about">Creator</a>
         <a href="https://github.com/ninaadsaxena" target="_blank" class="github-btn">
           <svg height="20" width="20" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.28.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
@@ -40,12 +41,36 @@
     <div class="hero-container">
       <div class="badge">
         <span class="badge-dot"></span>
-        <span>100% Free Chrome Extension</span>
+        <span>100% Free — Works on Chrome, Edge, Brave & More</span>
       </div>
       <h1 class="hero-title">Solve Wordle Automatically <br><span class="gradient-text">In Your Browser</span></h1>
       <p class="hero-description">
-        An AI-powered Information Entropy & Datamuse solver built directly into Chrome. Zero backend servers, no Python setup required.
+        An AI-powered Information Entropy & Datamuse solver. Works on any Chromium-based browser — under <strong>50 KB</strong>, zero servers, no Python, no performance impact.
       </p>
+
+      <!-- Browser Compatibility Strip -->
+      <div class="browser-strip">
+        <div class="browser-item">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#4285F4" stroke-width="1.5"/><path d="M12 2a10 10 0 0 1 8.66 5H12a5 5 0 0 0-4.33 2.5" stroke="#4285F4" stroke-width="1.5"/><path d="M2.05 12h9.45a5 5 0 0 0 4.33-7.5" stroke="#34A853" stroke-width="1.5"/><circle cx="12" cy="12" r="3" fill="#EA4335"/></svg>
+          <span>Chrome</span>
+        </div>
+        <div class="browser-sep">·</div>
+        <div class="browser-item">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M3 12C3 7.03 7.03 3 12 3c2.93 0 5.55 1.33 7.3 3.4" stroke="#0078D4" stroke-width="1.5" stroke-linecap="round"/><path d="M21 10c.6 2.8-.2 5.9-2.5 8C16.2 20.2 13.3 21 10.6 21" stroke="#0078D4" stroke-width="1.5" stroke-linecap="round"/><path d="M12 10c2.2 0 4 1.8 4 4s-1.8 4-4 4c-4.4 0-7-3.2-7-7 0-2.8 1.5-5.2 3.8-6.5" stroke="#0078D4" stroke-width="1.5" stroke-linecap="round"/></svg>
+          <span>Edge</span>
+          <span class="browser-tag">Dev Mode stays off ✓</span>
+        </div>
+        <div class="browser-sep">·</div>
+        <div class="browser-item">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#FB542B" stroke-width="1.5"/><path d="M12 3c0 0 4 3 4 9s-4 9-4 9" stroke="#FB542B" stroke-width="1.5"/><path d="M3 12h18" stroke="#FB542B" stroke-width="1.5"/></svg>
+          <span>Brave</span>
+        </div>
+        <div class="browser-sep">·</div>
+        <div class="browser-item">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="4" stroke="#FF6600" stroke-width="1.5"/><path d="M8 12h8M12 8v8" stroke="#FF6600" stroke-width="1.5" stroke-linecap="round"/></svg>
+          <span>Opera</span>
+        </div>
+      </div>
 
       <div class="hero-actions">
         <button id="download-btn" class="cta-btn primary-cta">
@@ -133,26 +158,117 @@
   <section id="how-it-works" class="section alt-bg">
     <div class="section-container">
       <h2 class="section-title">How to Install in 30 Seconds</h2>
-      <p class="section-subtitle">No Chrome Web Store fees or registration required.</p>
+      <p class="section-subtitle">Works on Chrome, Edge, Brave, Opera — any Chromium browser.</p>
 
       <div class="steps-grid">
         <div class="step-card">
           <div class="step-number">01</div>
           <h3>Download & Extract</h3>
-          <p>Click the download button above to get the extension `.zip` file and extract it on your computer.</p>
+          <p>Click the download button above to get the <code>.zip</code> file, then right-click it and select <strong>Extract All</strong>. Keep the extracted folder somewhere safe — the browser reads from it.</p>
         </div>
 
         <div class="step-card">
           <div class="step-number">02</div>
           <h3>Enable Developer Mode</h3>
-          <p>Open Chrome, navigate to <code>chrome://extensions</code>, and toggle <strong>Developer mode</strong> ON in top-right.</p>
+          <p>Open your browser's extensions page (<code>chrome://extensions</code> or <code>edge://extensions</code>) and toggle <strong>Developer mode</strong> ON in the top-right corner.</p>
         </div>
 
         <div class="step-card">
           <div class="step-number">03</div>
-          <h3>Load Unpacked</h3>
-          <p>Click <strong>Load unpacked</strong> in the top-left and select the extracted <code>extension</code> folder.</p>
+          <h3>Load Unpacked & Pin It</h3>
+          <p>Click <strong>Load unpacked</strong>, select the extracted <code>extension</code> folder, then click the puzzle-piece icon in your browser bar and pin the extension.</p>
         </div>
+      </div>
+
+      <!-- Browser tip callout -->
+      <div class="install-tip">
+        <div class="tip-icon">💡</div>
+        <div class="tip-body">
+          <strong>Microsoft Edge tip:</strong> Once installed, you can turn Developer Mode back <em>off</em> — the extension keeps running on Edge without needing it permanently on. Chrome requires it to stay on for unpacked extensions.
+        </div>
+      </div>
+
+      <div class="install-tip" style="margin-top:12px;">
+        <div class="tip-icon">📁</div>
+        <div class="tip-body">
+          <strong>Keep the folder.</strong> The browser reads the extension files directly from the folder on your disk. Do <em>not</em> delete the extracted folder — but you can move it anywhere you like (e.g. Documents). Just re-select it if you ever reload the extension.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ Section -->
+  <section id="faq" class="section">
+    <div class="section-container">
+      <h2 class="section-title">Frequently Asked Questions</h2>
+      <p class="section-subtitle">Everything you need to know before and after installing.</p>
+
+      <div class="faq-list">
+
+        <details class="faq-item">
+          <summary class="faq-question">Does it work on browsers other than Chrome?</summary>
+          <div class="faq-answer">
+            Yes! The extension works on any Chromium-based browser — <strong>Google Chrome, Microsoft Edge, Brave, Opera, Vivaldi</strong>, and others. The setup steps are nearly identical: go to your browser's extension page, enable Developer Mode, click Load Unpacked, and select the folder.
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary class="faq-question">Do I need to keep Developer Mode turned on after installing?</summary>
+          <div class="faq-answer">
+            <strong>Chrome:</strong> Yes — Chrome disables unpacked extensions when Developer Mode is off. You only need to interact with it once during setup; after that, just leave it on in the background (it has no effect on day-to-day browsing).<br><br>
+            <strong>Microsoft Edge:</strong> Once installed, you can turn Developer Mode off and the extension continues to run normally. Edge is more permissive with locally loaded extensions.
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary class="faq-question">Can I delete the downloaded zip or folder after installing?</summary>
+          <div class="faq-answer">
+            You can delete the original <code>.zip</code> file after extracting — you no longer need it. However, <strong>do not delete the extracted folder</strong>. Browsers load extension files directly from that folder on your disk. If the folder is moved or deleted, the extension will stop working. You can move it to a permanent location like your Documents or Desktop.
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary class="faq-question">Will this slow down my browser or use a lot of memory?</summary>
+          <div class="faq-answer">
+            Not at all. The entire extension is <strong>under 50 KB</strong> — smaller than a single webpage image. It only activates when you click the extension button on the NYT Wordle page. It has zero impact on your browser's speed, startup time, or memory usage.
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary class="faq-question">Is it safe? Does it collect any data?</summary>
+          <div class="faq-answer">
+            100% safe. The extension is fully <strong>open source</strong> — you can read every line of code on GitHub. It does not collect, store, or transmit any personal data. The only external request it makes is to the public Datamuse API to look up valid English words.
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary class="faq-question">Does it work on mobile?</summary>
+          <div class="faq-answer">
+            Browser extensions are a desktop-only feature — Chrome and Edge on Android and iOS do not support extensions. The solver only works on the desktop versions of supported browsers.
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary class="faq-question">What happens if Wordle rejects a guessed word?</summary>
+          <div class="faq-answer">
+            The solver detects when Wordle shakes a row (indicating the word isn't in its dictionary), automatically clears the row with Backspace presses, marks that word as invalid, and picks the next best candidate from remaining candidates.
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary class="faq-question">Can I use it mid-game if I've already made some guesses?</summary>
+          <div class="faq-answer">
+            Yes! The extension reads the existing tile colours on the board when it starts. If you've already made 1 or 2 guesses, it will pick up from where you left off and continue solving from that point.
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary class="faq-question">Does it work on Wordle variants like Quordle or Dordle?</summary>
+          <div class="faq-answer">
+            Currently the extension is designed specifically for the official <strong>NYT Wordle</strong> (nytimes.com). Other variants use different page structures and are not supported at this time.
+          </div>
+        </details>
+
       </div>
     </div>
   </section>
