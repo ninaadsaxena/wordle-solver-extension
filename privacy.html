@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy — Wordle AI Auto-Solver</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #0f172a;
+      color: #cbd5e1;
+      min-height: 100vh;
+      padding: 60px 20px;
+      line-height: 1.8;
+    }
+
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+    }
+
+    .back {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: #10b981;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 40px;
+      transition: opacity 0.2s;
+    }
+    .back:hover { opacity: 0.75; }
+
+    h1 {
+      font-size: 32px;
+      font-weight: 700;
+      color: #f1f5f9;
+      margin-bottom: 8px;
+    }
+
+    .meta {
+      font-size: 13px;
+      color: #64748b;
+      margin-bottom: 48px;
+    }
+
+    h2 {
+      font-size: 18px;
+      font-weight: 600;
+      color: #e2e8f0;
+      margin: 36px 0 12px;
+    }
+
+    p { margin-bottom: 16px; }
+
+    .highlight {
+      background: rgba(16, 185, 129, 0.08);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+      border-radius: 10px;
+      padding: 20px 24px;
+      margin: 32px 0;
+      color: #a7f3d0;
+      font-weight: 500;
+    }
+
+    a { color: #10b981; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    hr {
+      border: none;
+      border-top: 1px solid rgba(255,255,255,0.07);
+      margin: 40px 0;
+    }
+
+    .footer {
+      font-size: 13px;
+      color: #475569;
+      text-align: center;
+      margin-top: 60px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <a href="/" class="back">
+      ← Back to Home
+    </a>
+
+    <h1>Privacy Policy</h1>
+    <p class="meta">Wordle AI Auto-Solver Chrome Extension &nbsp;·&nbsp; Last updated: August 2026</p>
+
+    <div class="highlight">
+      ✅ This extension does <strong>not</strong> collect, store, transmit, or share any personal data or user information of any kind.
+    </div>
+
+    <h2>What data does the extension collect?</h2>
+    <p><strong>None.</strong> The Wordle AI Auto-Solver does not collect, log, or store any personal information, browsing history, usage analytics, or any other data from users.</p>
+
+    <h2>What does the extension access?</h2>
+    <p>The extension reads the current state of the NYT Wordle game board (tile letters and colours) solely to compute the next optimal guess. This information is processed locally in your browser and is never transmitted anywhere.</p>
+
+    <h2>Third-party API usage</h2>
+    <p>The extension makes requests to the <a href="https://www.datamuse.com/api/" target="_blank">Datamuse public word API</a> (<code>api.datamuse.com</code>) to fetch candidate words matching known letter patterns. These requests contain only letter pattern parameters (e.g. which letters are known or excluded) — no user identity, no account data, and no browsing information is included. Please refer to the <a href="https://www.datamuse.com/api/" target="_blank">Datamuse API documentation</a> for their own data practices.</p>
+
+    <h2>Permissions</h2>
+    <p>The extension requests the following browser permissions, used exclusively to operate on the NYT Wordle page:</p>
+    <ul style="margin: 0 0 16px 24px;">
+      <li><strong>activeTab</strong> — to read the Wordle board state on the current tab.</li>
+      <li><strong>scripting</strong> — to inject the solver logic into the Wordle game page.</li>
+      <li><strong>tabs</strong> — to verify the active tab is the Wordle page before running.</li>
+    </ul>
+    <p>None of these permissions are used to access, read, or transmit any personal data.</p>
+
+    <h2>Cookies & local storage</h2>
+    <p>The extension does not use cookies, localStorage, sessionStorage, or any other client-side storage mechanism.</p>
+
+    <h2>Children's privacy</h2>
+    <p>This extension does not collect data from anyone, including children under the age of 13.</p>
+
+    <h2>Changes to this policy</h2>
+    <p>If this policy is ever updated, the revised version will be posted at this URL with an updated date. Since the extension does not collect data, no material changes are anticipated.</p>
+
+    <h2>Contact</h2>
+    <p>If you have any questions about this privacy policy, you can reach the developer at:<br>
+      <a href="https://linkedin.com/in/ninaadsaxena" target="_blank">linkedin.com/in/ninaadsaxena</a> &nbsp;·&nbsp;
+      <a href="https://github.com/ninaadsaxena" target="_blank">github.com/ninaadsaxena</a>
+    </p>
+
+    <hr>
+    <p class="footer">Wordle AI Auto-Solver is an independent open-source project and is not affiliated with The New York Times.</p>
+
+  </div>
+</body>
+</html>
