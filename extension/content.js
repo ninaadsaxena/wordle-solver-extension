@@ -214,41 +214,83 @@ function bestGuess(candidates) {
   return bestWord || candidates[0];
 }
 
-// DOM Helper: Dismiss cookie & welcome modals
+// DOM Helper: Dismiss cookie, privacy & welcome modals automatically
 async function dismissModals() {
-  // Cookie banner
-  const cookieBanner = document.querySelector("#fides-banner");
-  if (cookieBanner) {
-    const btn = Array.from(cookieBanner.querySelectorAll("button"))
-      .find(b => ["accept all", "accept", "continue"].includes(b.innerText.trim().toLowerCase()));
-    if (btn) {
+  // 1. Accept / Dismiss Privacy & Cookie Preferences
+  const acceptButtons = [
+    "#onetrust-accept-btn-handler",
+    "#accept-all",
+    "#fides-banner button",
+    "button[id*='accept']",
+    "button[class*='accept']"
+  ];
+  
+  for (const selector of acceptButtons) {
+    const btn = document.querySelector(selector);
+    if (btn && btn.offsetWidth > 0 && btn.offsetHeight > 0) {
       btn.click();
-      await sleep(500);
+      await sleep(400);
+      break;
     }
   }
 
-  // Play button
-  const playBtn = document.querySelector('[data-testid="Play"]');
-  if (playBtn) {
-    playBtn.click();
-    await sleep(500);
+  // Also check buttons by text (e.g. "Accept all", "Accept", "Reject all")
+  const allBtns = Array.from(document.querySelectorAll("button"));
+  const privacyBtn = allBtns.find(b => {
+    const txt = b.innerText.trim().toLowerCase();
+    return (txt === "accept all" || txt === "accept" || txt === "reject all") && b.offsetWidth > 0 && b.offsetHeight > 0;
+  });
+  if (privacyBtn) {
+    privacyBtn.click();
+    await sleep(400);
   }
 
-  // Welcome Back Continue button
+  // 2. Play button (NYT Welcome page)
+  const playBtn = document.querySelector('[data-testid="Play"]') || 
+                  Array.from(document.querySelectorAll("button")).find(b => b.innerText.trim().toLowerCase() === "play");
+  if (playBtn && playBtn.offsetWidth > 0 && playBtn.offsetHeight > 0) {
+    playBtn.click();
+    await sleep(400);
+  }
+
+  // 3. Welcome Back / Continue buttons
   const continueBtns = Array.from(document.querySelectorAll('button'))
-    .filter(b => b.innerText.trim().toLowerCase() === "continue");
+    .filter(b => ["continue", "skip"].includes(b.innerText.trim().toLowerCase()));
   for (const b of continueBtns) {
     if (b.offsetWidth > 0 && b.offsetHeight > 0) {
       b.click();
-      await sleep(500);
+      await sleep(400);
     }
   }
 
-  // Close tutorial dialog
-  const closeBtn = document.querySelector('button[aria-label="Close"]') || document.querySelector('[data-testid="icon-close"]');
-  if (closeBtn) {
-    closeBtn.click();
-    await sleep(500);
+  // 4. Close "How to Play" / Tutorial modal overlay (X icon / SVG buttons)
+  const closeSelectors = [
+    'button[aria-label="Close"]',
+    'button[aria-label="close"]',
+    '[data-testid="icon-close"]',
+    'button.aria-label-close',
+    'header button:has(svg)',
+    '.Modal-module_closeIcon__25a2G',
+    '[class*="closeIcon"]',
+    '[class*="CloseButton"]'
+  ];
+
+  for (const sel of closeSelectors) {
+    try {
+      const closeBtn = document.querySelector(sel);
+      if (closeBtn && closeBtn.offsetWidth > 0 && closeBtn.offsetHeight > 0) {
+        closeBtn.click();
+        await sleep(400);
+      }
+    } catch(e) {}
+  }
+
+  // If a modal overlay backdrop exists, click outside or press Escape
+  const overlay = document.querySelector('[class*="Modal-module_overlay"]');
+  if (overlay) {
+    overlay.click();
+    dispatchKey("Escape");
+    await sleep(400);
   }
 }
 

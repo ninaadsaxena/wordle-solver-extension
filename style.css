@@ -280,11 +280,61 @@ body {
   font-weight: 700;
   font-size: 20px;
   color: #ffffff;
+  background: #3a3a3c;
+  border: 2px solid #565758;
+  transform-style: preserve-3d;
+  transition: background 0s;
+  position: relative;
 }
 
-.demo-tile.green { background: #538d4e; }
-.demo-tile.yellow { background: #b59f3b; }
-.demo-tile.gray { background: #3a3a3c; }
+/* Letter pop-in: tile scales up briefly when a letter is typed */
+@keyframes tile-pop {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+
+/* Tile flip: front half (tile rotates away) */
+@keyframes flip-down {
+  0%   { transform: rotateX(0deg); }
+  100% { transform: rotateX(-90deg); }
+}
+
+/* Tile flip: back half (tile rotates in with new color) */
+@keyframes flip-up {
+  0%   { transform: rotateX(90deg); }
+  100% { transform: rotateX(0deg); }
+}
+
+/* Bounce animation shown after solving */
+@keyframes tile-bounce {
+  0%   { transform: translateY(0); }
+  40%  { transform: translateY(-14px); }
+  60%  { transform: translateY(-7px); }
+  80%  { transform: translateY(-4px); }
+  100% { transform: translateY(0); }
+}
+
+.demo-tile.pop {
+  animation: tile-pop 0.1s ease;
+}
+
+.demo-tile.flip-out {
+  animation: flip-down 0.25s ease-in forwards;
+}
+
+.demo-tile.flip-in {
+  animation: flip-up 0.25s ease-out forwards;
+}
+
+.demo-tile.bounce {
+  animation: tile-bounce 0.4s ease;
+}
+
+/* Colored states — applied after flip */
+.demo-tile.green { background: #538d4e; border-color: #538d4e; }
+.demo-tile.yellow { background: #b59f3b; border-color: #b59f3b; }
+.demo-tile.gray  { background: #3a3a3c; border-color: #3a3a3c; }
 
 .solver-overlay-badge {
   background: rgba(16, 185, 129, 0.15);
