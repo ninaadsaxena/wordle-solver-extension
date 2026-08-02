@@ -69,18 +69,25 @@ async function runSolver() {
       history.every(([g, fb]) => getFeedback(g, c) === fb)
     );
 
-    if (candidates.length === 0) {
-      console.warn("No live candidates satisfy constraints!");
-      alert("No candidate words found matching current clues.");
-      isSolving = false;
-      return;
-    }
-
     let guess;
-    if (turn === 0) {
+
+    if (candidates.length === 0) {
+      // No candidates match all constraints — fall back to a probe guess
+      // that tests as many untested letters as possible without using
+      // confirmed-absent letters. This mirrors what a skilled human does
+      // (e.g. guessing POLER / REPEL to check new letters).
+      console.warn("No live candidates — switching to probe mode...");
+      guess = await getProbeGuess(history, rejectedWords);
+      if (!guess) {
+        console.warn("Probe mode exhausted — cannot continue.");
+        isSolving = false;
+        return;
+      }
+      console.log(`🔍 Probe guess: ${guess} (testing unchecked letters)`);
+    } else if (turn === 0) {
       const validOpeners = TOP_OPENERS.filter(w => candidates.includes(w));
-      guess = validOpeners.length > 0 
-        ? validOpeners[Math.floor(Math.random() * validOpeners.length)] 
+      guess = validOpeners.length > 0
+        ? validOpeners[Math.floor(Math.random() * validOpeners.length)]
         : bestGuess(candidates);
     } else {
       guess = bestGuess(candidates);
@@ -212,6 +219,65 @@ function bestGuess(candidates) {
     }
   }
   return bestWord || candidates[0];
+}
+
+// Helper: Get letters confirmed absent (seen as B, never as G or Y).
+// Handles repeated-letter edge cases: if a letter appeared as B in one
+// guess but Y or G in another, it is NOT absent — the B meant "no extra copy".
+function getAbsentLetters(history) {
+  const present = new Set();
+  const blackSeen = new Set();
+  for (const [guess, fb] of history) {
+    for (let i = 0; i < 5; i++) {
+      if (fb[i] === 'G' || fb[i] === 'Y') {
+        present.add(guess[i]);
+      } else {
+        blackSeen.add(guess[i]);
+      }
+    }
+  }
+  // Truly absent = appeared as B AND never as G/Y across all guesses
+  return new Set([...blackSeen].filter(l => !present.has(l)));
+}
+
+// Helper: When no candidates satisfy constraints, pick a valid word that
+// tests the maximum number of unchecked letters ("probe" / elimination guess).
+async function getProbeGuess(history, rejectedWords = new Set()) {
+  const testedLetters = new Set();
+  const absentLetters = getAbsentLetters(history);
+
+  for (const [guess] of history) {
+    for (const ch of guess) testedLetters.add(ch);
+  }
+
+  // Letters we haven't tried at all yet
+  const untestedLetters = new Set(
+    'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').filter(l => !testedLetters.has(l))
+  );
+
+  // Fetch a broad pool of 5-letter words from Datamuse
+  const probePool = await fetchDatamuseWords('?????');
+
+  // Exclude: already-rejected words + words that use confirmed-absent letters
+  const validProbes = probePool.filter(word =>
+    !rejectedWords.has(word) &&
+    ![...word].some(ch => absentLetters.has(ch))
+  );
+
+  if (validProbes.length === 0) return null;
+
+  // Score each candidate by unique untested letters it covers
+  let bestProbe = null;
+  let bestScore = -1;
+  for (const word of validProbes) {
+    const score = [...new Set(word.split(''))].filter(ch => untestedLetters.has(ch)).length;
+    if (score > bestScore) {
+      bestScore = score;
+      bestProbe = word;
+    }
+  }
+
+  return bestProbe;
 }
 
 // DOM Helper: Dismiss cookie, privacy & welcome modals automatically
@@ -387,7 +453,7 @@ function isAlreadyCompleted() {
   if (stats && stats.innerText.includes("STATISTICS")) return true;
 
   const history = getExistingHistory();
-  if (history.length >= 6) return True;
+  if (history.length >= 6) return true;
   return history.some(([_, p]) => p === "GGGGG");
 }
 
