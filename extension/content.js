@@ -9,9 +9,11 @@ const STATE_MAP = {
   absent: "B"
 };
 
+// Top openers ranked by Shannon Entropy (bits of expected information gain).
+// Source: Information-theory Wordle research (3Blue1Brown, MIT benchmarks).
 const TOP_OPENERS = [
-  "CRANE", "SLATE", "STARE", "ROATE", "RAISE",
-  "TRACE", "SNARE", "ARISE", "SALET", "TALER"
+  "SALET", "TRACE", "CRANE", "CRATE", "SLATE",
+  "STARE", "RAISE", "SNARE", "AROSE", "LEAST"
 ];
 
 let isSolving = false;
@@ -89,6 +91,20 @@ async function runSolver() {
       guess = validOpeners.length > 0
         ? validOpeners[Math.floor(Math.random() * validOpeners.length)]
         : bestGuess(candidates);
+    } else if (turn === 1 && shouldPlayFreeGuess(history)) {
+      // Turn 2 free-probe strategy: if the opener gave ≤ 2 green/yellow
+      // positions, it's more valuable to test a completely fresh set of
+      // letters than to prematurely narrow candidates.
+      // This mirrors the human strategy seen in: CLOUD → VIXEN → GRAPE …
+      // where the second guess deliberately ignores known yellow letters
+      // to cover more of the alphabet.
+      const freeGuess = await getProbeGuess(history, rejectedWords);
+      if (freeGuess) {
+        guess = freeGuess;
+        console.log(`🔀 Free second guess: ${guess} (opener gave only ${getUsefulLetterCount(history[0])} useful positions — probing fresh letters)`);
+      } else {
+        guess = bestGuess(candidates); // fallback to candidates if probe fails
+      }
     } else {
       guess = bestGuess(candidates);
     }
@@ -278,6 +294,20 @@ async function getProbeGuess(history, rejectedWords = new Set()) {
   }
 
   return bestProbe;
+}
+
+// Helper: Count green + yellow positions in the most recent [guess, feedback].
+function getUsefulLetterCount([, fb]) {
+  return fb.split('').filter(c => c === 'G' || c === 'Y').length;
+}
+
+// Helper: Decide whether to play a free second probe on turn 2.
+// If the opener returned ≤ 2 useful positions (green or yellow), the
+// candidate pool is still huge. Covering 5 brand-new letters yields
+// more expected information than restricting to known constraints.
+function shouldPlayFreeGuess(history) {
+  if (history.length === 0) return false;
+  return getUsefulLetterCount(history[0]) <= 2;
 }
 
 // DOM Helper: Dismiss cookie, privacy & welcome modals automatically
