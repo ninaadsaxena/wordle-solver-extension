@@ -81,12 +81,14 @@ The engine runs entirely in the browser via a Manifest V3 content script. No bac
 
 ## 🎯 Top Optimal Opening Guesses
 
-To skip the expensive first-turn calculation (which would require evaluating ~100M word pairs), the solver randomly selects from a curated list of 10 mathematically optimal openers:
+To skip the expensive first-turn calculation (which would require evaluating ~100M word pairs), the solver randomly selects from a curated list of 20 top mathematical and popular player openers:
 
 ```js
 const TOP_OPENERS = [
-  "CRANE", "SLATE", "STARE", "ROATE", "RAISE",
-  "TRACE", "SNARE", "ARISE", "SALET", "TALER"
+  "SALET", "TRACE", "CRANE", "CRATE", "SLATE",
+  "STARE", "RAISE", "SNARE", "AROSE", "LEAST",
+  "ADIEU", "AUDIO", "ARISE", "HOUSE", "TRAIN",
+  "IRATE", "GREAT", "HEART", "DREAM", "OCEAN"
 ];
 ```
 
