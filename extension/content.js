@@ -9,12 +9,22 @@ const STATE_MAP = {
   absent: "B"
 };
 
-// Top openers ranked by Shannon Entropy (bits of expected information gain).
-// Source: Information-theory Wordle research (3Blue1Brown, MIT benchmarks).
+// Top openers combining high Shannon Entropy (math) + popular NYT Wordle Bot player choices
 const TOP_OPENERS = [
+  // Top Mathematical Openers (Information Theory / 3Blue1Brown / MIT benchmarks)
   "SALET", "TRACE", "CRANE", "CRATE", "SLATE",
-  "STARE", "RAISE", "SNARE", "AROSE", "LEAST"
+  "STARE", "RAISE", "SNARE", "AROSE", "LEAST",
+  // Top Reader/Player Picks (NYT Wordle Bot analytics)
+  "ADIEU", "AUDIO", "ARISE", "HOUSE", "TRAIN",
+  "IRATE", "GREAT", "HEART", "DREAM", "OCEAN"
 ];
+
+// English Letter Frequency weights (used to prioritize high-yield consonants & vowels in probes)
+const LETTER_WEIGHTS = {
+  E: 12.7, T: 9.1, A: 8.2, O: 7.5, I: 7.0, N: 6.7, S: 6.3, H: 6.1, R: 6.0,
+  D: 4.3, L: 4.0, C: 2.8, U: 2.8, M: 2.4, W: 2.4, F: 2.2, G: 2.0, Y: 2.0,
+  P: 1.9, B: 1.5, V: 1.0, K: 0.8, J: 0.15, X: 0.15, Q: 0.1, Z: 0.07
+};
 
 let isSolving = false;
 
@@ -91,23 +101,20 @@ async function runSolver() {
       const validOpeners = TOP_OPENERS.filter(w => candidates.includes(w));
       guess = validOpeners.length > 0
         ? validOpeners[Math.floor(Math.random() * validOpeners.length)]
-        : bestGuess(candidates);
+        : await bestGuess(candidates, history, rejectedWords);
     } else if (turn === 1 && shouldPlayFreeGuess(history)) {
       // Turn 2 free-probe strategy: if the opener gave ≤ 2 green/yellow
       // positions, it's more valuable to test a completely fresh set of
-      // letters than to prematurely narrow candidates.
-      // This mirrors the human strategy seen in: CLOUD → VIXEN → GRAPE …
-      // where the second guess deliberately ignores known yellow letters
-      // to cover more of the alphabet.
+      // high-frequency letters than to prematurely narrow candidates.
       const freeGuess = await getProbeGuess(history, rejectedWords);
       if (freeGuess) {
         guess = freeGuess;
-        console.log(`🔀 Free second guess: ${guess} (opener gave only ${getUsefulLetterCount(history[0])} useful positions — probing fresh letters)`);
+        console.log(`🔀 Free second guess: ${guess} (opener gave only ${getUsefulLetterCount(history[0])} useful positions — probing fresh high-yield letters)`);
       } else {
-        guess = bestGuess(candidates); // fallback to candidates if probe fails
+        guess = await bestGuess(candidates, history, rejectedWords);
       }
     } else {
-      guess = bestGuess(candidates);
+      guess = await bestGuess(candidates, history, rejectedWords);
     }
 
     if (!guess) {
@@ -222,19 +229,38 @@ function calculateEntropy(guess, candidates) {
   return ent;
 }
 
-function bestGuess(candidates) {
+async function bestGuess(candidates, history = [], rejectedWords = new Set()) {
   if (candidates.length === 1) return candidates[0];
+  if (candidates.length === 2) return candidates[0]; // 50/50 chance
+
   let bestWord = null;
   let bestScore = -1.0;
 
+  // 1. Evaluate candidate pool (give +0.15 bit bonus for candidate match winning immediately)
   const pool = candidates.length <= 40 ? candidates : candidates.slice(0, 150);
   for (const word of pool) {
-    const score = calculateEntropy(word, candidates);
+    const score = calculateEntropy(word, candidates) + 0.15;
     if (score > bestScore) {
       bestWord = word;
       bestScore = score;
     }
   }
+
+  // 2. If candidates >= 3 and <= 30, also evaluate non-candidate probe words
+  // to break letter traps (e.g. _IGHT / _OUND clusters) in a single turn
+  if (candidates.length >= 3 && candidates.length <= 30) {
+    const probeCandidates = await getProbeCandidates(history, rejectedWords);
+    for (const probe of probeCandidates) {
+      if (candidates.includes(probe)) continue;
+      const score = calculateEntropy(probe, candidates); // no bonus for non-candidates
+      if (score > bestScore) {
+        bestWord = probe;
+        bestScore = score;
+        console.log(`💡 High-entropy non-candidate probe chosen: ${probe} (splits candidate cluster efficiently)`);
+      }
+    }
+  }
+
   return bestWord || candidates[0];
 }
 
@@ -257,8 +283,8 @@ function getAbsentLetters(history) {
   return new Set([...blackSeen].filter(l => !present.has(l)));
 }
 
-// Helper: When no candidates satisfy constraints, pick a valid word that
-// tests the maximum number of unchecked letters ("probe" / elimination guess).
+// Helper: When probe mode is active, pick a valid word that tests high-frequency
+// untested letters (weighted by English letter frequency).
 async function getProbeGuess(history, rejectedWords = new Set()) {
   const testedLetters = new Set();
   const absentLetters = getAbsentLetters(history);
@@ -267,15 +293,11 @@ async function getProbeGuess(history, rejectedWords = new Set()) {
     for (const ch of guess) testedLetters.add(ch);
   }
 
-  // Letters we haven't tried at all yet
   const untestedLetters = new Set(
     'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').filter(l => !testedLetters.has(l))
   );
 
-  // Fetch a broad pool of 5-letter words from Datamuse
   const probePool = await fetchDatamuseWords('?????');
-
-  // Exclude: already-rejected words + words that use confirmed-absent letters
   const validProbes = probePool.filter(word =>
     !rejectedWords.has(word) &&
     ![...word].some(ch => absentLetters.has(ch))
@@ -283,11 +305,15 @@ async function getProbeGuess(history, rejectedWords = new Set()) {
 
   if (validProbes.length === 0) return null;
 
-  // Score each candidate by unique untested letters it covers
+  // Score probe by sum of letter frequency weights of its unique untested letters
   let bestProbe = null;
   let bestScore = -1;
   for (const word of validProbes) {
-    const score = [...new Set(word.split(''))].filter(ch => untestedLetters.has(ch)).length;
+    const uniqueChars = [...new Set(word.split(''))];
+    const score = uniqueChars
+      .filter(ch => untestedLetters.has(ch))
+      .reduce((sum, ch) => sum + (LETTER_WEIGHTS[ch] || 1.0), 0);
+
     if (score > bestScore) {
       bestScore = score;
       bestProbe = word;
@@ -295,6 +321,18 @@ async function getProbeGuess(history, rejectedWords = new Set()) {
   }
 
   return bestProbe;
+}
+
+// Helper: Get candidate probe words from Datamuse + TOP_OPENERS for entropy evaluation
+async function getProbeCandidates(history, rejectedWords = new Set()) {
+  const absentLetters = getAbsentLetters(history);
+  const probePool = await fetchDatamuseWords('?????');
+  const combined = Array.from(new Set([...probePool, ...TOP_OPENERS]));
+  
+  return combined.filter(word =>
+    !rejectedWords.has(word) &&
+    ![...word].some(ch => absentLetters.has(ch))
+  ).slice(0, 60);
 }
 
 // Helper: Count green + yellow positions in the most recent [guess, feedback].
