@@ -360,7 +360,7 @@ async function dismissModals() {
     }
   }
 
-  // 4. Close "How to Play", Tutorial modals & NYT Navigation Side Drawer
+  // 4. Close "How to Play", Account Promo modals, Tutorial dialogs & NYT Navigation Side Drawer
   const closeSelectors = [
     'button[aria-label="Close"]',
     'button[aria-label="close"]',
@@ -368,12 +368,18 @@ async function dismissModals() {
     'button[aria-label="Close menu"]',
     'button[aria-label*="close"]',
     'button[aria-label*="Close"]',
+    'button[aria-label*="dismiss"]',
+    'button[aria-label*="Dismiss"]',
     '[data-testid="icon-close"]',
     '[data-testid="nav-drawer-close"]',
     '[data-testid="drawer-close"]',
+    '[data-testid="close-button"]',
+    '[data-testid="modal-close"]',
     'button.aria-label-close',
     '.Modal-module_closeIcon__25a2G',
     '[class*="closeIcon"]',
+    '[class*="CloseIcon"]',
+    '[class*="closeButton"]',
     '[class*="CloseButton"]',
     '[class*="NavDrawer"] button',
     '[class*="navDrawer"] button',
@@ -388,24 +394,56 @@ async function dismissModals() {
       for (const closeBtn of btns) {
         if (closeBtn && closeBtn.offsetWidth > 0 && closeBtn.offsetHeight > 0) {
           closeBtn.click();
-          await sleep(300);
+          await sleep(250);
         }
       }
     } catch(e) {}
   }
 
-  // 5. If any modal overlay backdrop or side drawer is active, press Escape and click overlay
+  // 5. Generic Dialog & Modal Sweep: scan any open dialog/modal container for close/skip/dismiss buttons
+  const dialogContainers = document.querySelectorAll('[role="dialog"], [class*="Modal"], [class*="modal"], [class*="Dialog"], [class*="dialog"], [class*="Overlay"], [class*="overlay"], [class*="popup"], [class*="Popup"]');
+  for (const container of dialogContainers) {
+    if (!container || container.offsetWidth === 0 || container.offsetHeight === 0) continue;
+
+    const clickableElements = Array.from(container.querySelectorAll('button, svg, a, div[role="button"], span[role="button"]'));
+    for (const el of clickableElements) {
+      const label = (el.getAttribute('aria-label') || '').toLowerCase();
+      const testid = (el.getAttribute('data-testid') || '').toLowerCase();
+      const cls = (el.getAttribute('class') || '').toLowerCase();
+      const txt = (el.innerText || '').trim().toLowerCase();
+
+      if (
+        label.includes('close') || label.includes('dismiss') || label.includes('skip') ||
+        testid.includes('close') || testid.includes('dismiss') ||
+        cls.includes('close') || cls.includes('dismiss') ||
+        txt === 'x' || txt === '✕' || txt === 'no thanks' || txt === 'maybe later' || txt === 'skip'
+      ) {
+        try {
+          if (typeof el.click === 'function') {
+            el.click();
+          } else if (el.parentElement && typeof el.parentElement.click === 'function') {
+            el.parentElement.click();
+          }
+          await sleep(250);
+        } catch(e) {}
+      }
+    }
+  }
+
+  // 6. Click any active modal backdrop / overlay
   const overlays = document.querySelectorAll('[class*="Modal-module_overlay"], [class*="overlay"], [class*="backdrop"]');
   for (const overlay of overlays) {
     if (overlay && overlay.offsetWidth > 0 && overlay.offsetHeight > 0) {
       overlay.click();
-      await sleep(200);
+      await sleep(150);
     }
   }
 
-  // Send Escape key to close any lingering side drawer or popup
+  // 7. Send Escape key twice to dismiss any lingering popups or drawers
   dispatchKey("Escape");
-  await sleep(300);
+  await sleep(150);
+  dispatchKey("Escape");
+  await sleep(250);
 }
 
 // DOM Helper: Type guess via key events
