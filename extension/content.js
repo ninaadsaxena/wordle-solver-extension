@@ -60,6 +60,7 @@ async function runSolver() {
 
   while (turn < 6) {
     console.log(`--- Turn ${turn + 1} ---`);
+    await dismissModals();
     const patternStr = buildPattern(history);
     console.log(`Fetching candidates matching pattern: "${patternStr}"`);
 
@@ -359,35 +360,52 @@ async function dismissModals() {
     }
   }
 
-  // 4. Close "How to Play" / Tutorial modal overlay (X icon / SVG buttons)
+  // 4. Close "How to Play", Tutorial modals & NYT Navigation Side Drawer
   const closeSelectors = [
     'button[aria-label="Close"]',
     'button[aria-label="close"]',
+    'button[aria-label="Close navigation"]',
+    'button[aria-label="Close menu"]',
+    'button[aria-label*="close"]',
+    'button[aria-label*="Close"]',
     '[data-testid="icon-close"]',
+    '[data-testid="nav-drawer-close"]',
+    '[data-testid="drawer-close"]',
     'button.aria-label-close',
-    'header button:has(svg)',
     '.Modal-module_closeIcon__25a2G',
     '[class*="closeIcon"]',
-    '[class*="CloseButton"]'
+    '[class*="CloseButton"]',
+    '[class*="NavDrawer"] button',
+    '[class*="navDrawer"] button',
+    '[class*="drawer"] button[aria-label]',
+    '[class*="Sidebar"] button',
+    '[class*="sidebar"] button'
   ];
 
   for (const sel of closeSelectors) {
     try {
-      const closeBtn = document.querySelector(sel);
-      if (closeBtn && closeBtn.offsetWidth > 0 && closeBtn.offsetHeight > 0) {
-        closeBtn.click();
-        await sleep(400);
+      const btns = document.querySelectorAll(sel);
+      for (const closeBtn of btns) {
+        if (closeBtn && closeBtn.offsetWidth > 0 && closeBtn.offsetHeight > 0) {
+          closeBtn.click();
+          await sleep(300);
+        }
       }
     } catch(e) {}
   }
 
-  // If a modal overlay backdrop exists, click outside or press Escape
-  const overlay = document.querySelector('[class*="Modal-module_overlay"]');
-  if (overlay) {
-    overlay.click();
-    dispatchKey("Escape");
-    await sleep(400);
+  // 5. If any modal overlay backdrop or side drawer is active, press Escape and click overlay
+  const overlays = document.querySelectorAll('[class*="Modal-module_overlay"], [class*="overlay"], [class*="backdrop"]');
+  for (const overlay of overlays) {
+    if (overlay && overlay.offsetWidth > 0 && overlay.offsetHeight > 0) {
+      overlay.click();
+      await sleep(200);
+    }
   }
+
+  // Send Escape key to close any lingering side drawer or popup
+  dispatchKey("Escape");
+  await sleep(300);
 }
 
 // DOM Helper: Type guess via key events
