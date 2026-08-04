@@ -429,6 +429,7 @@ async function dismissModals() {
     try {
       const btns = document.querySelectorAll(sel);
       for (const closeBtn of btns) {
+        if (isKeyboardOrBoardElement(closeBtn)) continue;
         if (closeBtn && closeBtn.offsetWidth > 0 && closeBtn.offsetHeight > 0) {
           closeBtn.click();
           await sleep(250);
@@ -437,13 +438,15 @@ async function dismissModals() {
     } catch(e) {}
   }
 
-  // 5. Generic Dialog & Modal Sweep: scan any open dialog/modal container for close/skip/dismiss buttons
+  // 5. Generic Dialog & Modal Sweep: scan open dialog/modal containers for close/skip/dismiss buttons
   const dialogContainers = document.querySelectorAll('[role="dialog"], [class*="Modal"], [class*="modal"], [class*="Dialog"], [class*="dialog"], [class*="Overlay"], [class*="overlay"], [class*="popup"], [class*="Popup"]');
   for (const container of dialogContainers) {
     if (!container || container.offsetWidth === 0 || container.offsetHeight === 0) continue;
+    if (isKeyboardOrBoardElement(container)) continue;
 
     const clickableElements = Array.from(container.querySelectorAll('button, svg, a, div[role="button"], span[role="button"]'));
     for (const el of clickableElements) {
+      if (isKeyboardOrBoardElement(el)) continue;
       const label = (el.getAttribute('aria-label') || '').toLowerCase();
       const testid = (el.getAttribute('data-testid') || '').toLowerCase();
       const cls = (el.getAttribute('class') || '').toLowerCase();
@@ -453,7 +456,7 @@ async function dismissModals() {
         label.includes('close') || label.includes('dismiss') || label.includes('skip') ||
         testid.includes('close') || testid.includes('dismiss') ||
         cls.includes('close') || cls.includes('dismiss') ||
-        txt === 'x' || txt === '✕' || txt === 'no thanks' || txt === 'maybe later' || txt === 'skip'
+        txt === '✕' || txt === 'no thanks' || txt === 'maybe later' || txt === 'skip'
       ) {
         try {
           if (typeof el.click === 'function') {
@@ -471,6 +474,7 @@ async function dismissModals() {
   const overlays = document.querySelectorAll('[class*="Modal-module_overlay"], [class*="overlay"], [class*="backdrop"]');
   for (const overlay of overlays) {
     if (overlay && overlay.offsetWidth > 0 && overlay.offsetHeight > 0) {
+      if (isKeyboardOrBoardElement(overlay)) continue;
       overlay.click();
       await sleep(150);
     }
@@ -481,6 +485,14 @@ async function dismissModals() {
   await sleep(150);
   dispatchKey("Escape");
   await sleep(250);
+}
+
+// Helper: Ensure we never click virtual keyboard or game board elements during modal sweeps
+function isKeyboardOrBoardElement(el) {
+  if (!el) return false;
+  if (el.hasAttribute && (el.hasAttribute('data-key') || el.getAttribute('data-testid') === 'tile')) return true;
+  if (el.closest && (el.closest('[data-testid="keyboard"]') || el.closest('[class*="Keyboard"]') || el.closest('[class*="Board"]') || el.closest('[data-testid="board"]'))) return true;
+  return false;
 }
 
 // DOM Helper: Type guess via key events
