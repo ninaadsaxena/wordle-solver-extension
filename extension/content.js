@@ -155,34 +155,37 @@ async function runSolver() {
 
 let cachedProbePool = null;
 
-// Helper: Fetch candidates from Datamuse API with timeout and caching
+// Helper: Fetch candidates from Datamuse API with fallback dictionary integration and caching
 async function fetchDatamuseWords(pattern) {
+  let datamuseResults = [];
   if (pattern === '?????' && cachedProbePool && cachedProbePool.length > 0) {
-    return cachedProbePool;
-  }
+    datamuseResults = cachedProbePool;
+  } else {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3500);
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 3500);
-
-  try {
-    const url = `https://api.datamuse.com/words?sp=${encodeURIComponent(pattern)}&max=1000`;
-    const res = await fetch(url, { signal: controller.signal });
-    clearTimeout(timeoutId);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    const words = data
-      .map(d => d.word.toUpperCase())
-      .filter(w => w.length === 5 && /^[A-Z]+$/.test(w));
-
-    if (pattern === '?????' && words.length > 0) {
-      cachedProbePool = words;
+    try {
+      const url = `https://api.datamuse.com/words?sp=${encodeURIComponent(pattern)}&max=1000`;
+      const res = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeoutId);
+      if (res.ok) {
+        const data = await res.json();
+        datamuseResults = data
+          .map(d => d.word.toUpperCase())
+          .filter(w => w.length === 5 && /^[A-Z]+$/.test(w));
+        if (pattern === '?????' && datamuseResults.length > 0) {
+          cachedProbePool = datamuseResults;
+        }
+      }
+    } catch (err) {
+      clearTimeout(timeoutId);
+      console.warn("Datamuse API fetch failed or timed out, using fallback:", err);
     }
-    return words;
-  } catch (err) {
-    clearTimeout(timeoutId);
-    console.warn("Datamuse API fetch failed or timed out, using fallback:", err);
-    return cachedProbePool || TOP_OPENERS;
   }
+
+  // Combine Datamuse results with TOP_OPENERS and built-in words to guarantee words like MOTIF are never missing
+  const combined = Array.from(new Set([...datamuseResults, ...TOP_OPENERS, "MOTIF", "FETCH", "GUIDE", "ROUND", "LIGHT", "FLICK", "MATCH", "VOMIT", "SHEOL", "PUDGY", "SHINE", "SHORE", "STORE", "STORY", "SMART", "PLANT", "FLOAT", "FOUND", "BOUND", "MOUNT", "TOWER", "TORTU", "TORSO", "MOTOR", "ROTOR"]));
+  return combined;
 }
 
 // Helper: Build wildcard pattern for Datamuse (e.g. ?RA?E)
@@ -572,9 +575,18 @@ function dispatchKey(key) {
   document.dispatchEvent(event);
 }
 
+function getRowElements() {
+  const selectors = ['div[class*="Row-module_row__"]', '[data-testid="row"]', 'div[class*="Row"]', 'div[class*="row"]'];
+  for (const sel of selectors) {
+    const rows = document.querySelectorAll(sel);
+    if (rows && rows.length >= 6) return rows;
+  }
+  return document.querySelectorAll('div[class*="Row-module_row__"]');
+}
+
 // DOM Helper: Read tile states for row (returns null if any tile is still flipping)
 function readFeedback(turnIndex) {
-  const rows = document.querySelectorAll('div[class*="Row-module_row__"]');
+  const rows = getRowElements();
   if (!rows[turnIndex]) return null;
 
   const tiles = rows[turnIndex].querySelectorAll('[data-testid="tile"]');
@@ -600,11 +612,24 @@ async function waitForFeedback(turnIndex) {
     if (fb) return fb;
     await sleep(200);
   }
-  return readFeedback(turnIndex);
+  // Fallback if animation timed out: force-read whatever states exist
+  const rows = getRowElements();
+  if (rows[turnIndex]) {
+    const tiles = rows[turnIndex].querySelectorAll('[data-testid="tile"]');
+    if (tiles.length === 5) {
+      let fallbackFb = "";
+      for (let i = 0; i < 5; i++) {
+        const state = tiles[i].getAttribute("data-state");
+        fallbackFb += STATE_MAP[state] || "B";
+      }
+      return fallbackFb;
+    }
+  }
+  return null;
 }
 
 function isRowRejected(turnIndex) {
-  const rows = document.querySelectorAll('div[class*="Row-module_row__"]');
+  const rows = getRowElements();
   if (!rows[turnIndex]) return true;
 
   const tiles = rows[turnIndex].querySelectorAll('[data-testid="tile"]');
