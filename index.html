@@ -200,14 +200,21 @@
         <details class="faq-item">
           <summary class="faq-question">Do I need Developer Mode or any technical setup?</summary>
           <div class="faq-answer">
-            <strong>No.</strong> Installing from the Chrome Web Store is identical to installing any other extension — no Developer Mode, no ZIP files, no folder management. Chrome handles everything automatically, including future updates.
+            <strong>No.</strong> Installing from the Chrome Web Store is identical to installing any standard extension — no Developer Mode, no ZIP downloads, and no folder management required. Chrome handles installation and updates automatically.
           </div>
         </details>
 
         <details class="faq-item">
-          <summary class="faq-question">Can I delete the downloaded zip or folder after installing?</summary>
+          <summary class="faq-question">How does it handle popups, banners, or NYT login modals?</summary>
           <div class="faq-answer">
-            You can delete the original <code>.zip</code> file after extracting — you no longer need it. However, <strong>do not delete the extracted folder</strong>. Browsers load extension files directly from that folder on your disk. If the folder is moved or deleted, the extension will stop working. You can move it to a permanent location like your Documents or Desktop.
+            The solver automatically detects and dismisses cookie consent banners, privacy popups, NYT account login prompts, and side navigation menus before and during gameplay so solving is never interrupted.
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary class="faq-question">How does it handle repeated letters and letter traps?</summary>
+          <div class="faq-answer">
+            The engine uses a two-pass algorithm for exact repeated-letter feedback, and when multiple candidates share similar patterns (like <code>_IGHT</code> or <code>_OUND</code>), it evaluates high-frequency probe words to test multiple letters in a single guess.
           </div>
         </details>
 
@@ -221,28 +228,28 @@
         <details class="faq-item">
           <summary class="faq-question">Is it safe? Does it collect any data?</summary>
           <div class="faq-answer">
-            100% safe. The extension is fully <strong>open source</strong> — you can read every line of code on GitHub. It does not collect, store, or transmit any personal data. The only external request it makes is to the public Datamuse API to look up valid English words.
+            100% safe. The extension is fully <strong>open source</strong> — you can read every line of code on GitHub. It does not collect, store, or transmit any personal data. Check out our transparent <a href="/privacy.html" class="green-link">Privacy Policy</a>.
           </div>
         </details>
 
         <details class="faq-item">
           <summary class="faq-question">Does it work on mobile?</summary>
           <div class="faq-answer">
-            Browser extensions are a desktop-only feature — Chrome and Edge on Android and iOS do not support extensions. The solver only works on the desktop versions of supported browsers.
+            Browser extensions are a desktop-only feature — Chrome and Edge on Android and iOS do not support extensions. The solver works on desktop versions of all Chromium browsers.
           </div>
         </details>
 
         <details class="faq-item">
           <summary class="faq-question">What happens if Wordle rejects a guessed word?</summary>
           <div class="faq-answer">
-            The solver detects when Wordle shakes a row (indicating the word isn't in its dictionary), automatically clears the row with Backspace presses, marks that word as invalid, and picks the next best candidate from remaining candidates.
+            The solver detects when Wordle shakes a row (indicating the word isn't in its dictionary), automatically clears the row with Backspace presses, marks that word as invalid, and picks the next best candidate.
           </div>
         </details>
 
         <details class="faq-item">
           <summary class="faq-question">Can I use it mid-game if I've already made some guesses?</summary>
           <div class="faq-answer">
-            Yes! The extension reads the existing tile colours on the board when it starts. If you've already made 1 or 2 guesses, it will pick up from where you left off and continue solving from that point.
+            Yes! The extension reads existing tile colours on the board when it starts. If you've already made 1 or 2 guesses, it will pick up from where you left off and continue solving from that point.
           </div>
         </details>
 
