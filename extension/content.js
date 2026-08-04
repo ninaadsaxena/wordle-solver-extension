@@ -363,6 +363,8 @@ function shouldPlayFreeGuess(history) {
 
 // DOM Helper: Dismiss cookie, privacy & welcome modals automatically
 async function dismissModals() {
+  let dismissed = false;
+
   // 1. Accept / Dismiss Privacy & Cookie Preferences
   const acceptButtons = [
     "#onetrust-accept-btn-handler",
@@ -376,6 +378,7 @@ async function dismissModals() {
     const btn = document.querySelector(selector);
     if (btn && btn.offsetWidth > 0 && btn.offsetHeight > 0) {
       btn.click();
+      dismissed = true;
       await sleep(400);
       break;
     }
@@ -445,6 +448,7 @@ async function dismissModals() {
         if (isKeyboardOrBoardElement(closeBtn)) continue;
         if (closeBtn && closeBtn.offsetWidth > 0 && closeBtn.offsetHeight > 0) {
           closeBtn.click();
+          dismissed = true;
           await sleep(250);
         }
       }
@@ -474,8 +478,10 @@ async function dismissModals() {
         try {
           if (typeof el.click === 'function') {
             el.click();
+            dismissed = true;
           } else if (el.parentElement && typeof el.parentElement.click === 'function') {
             el.parentElement.click();
+            dismissed = true;
           }
           await sleep(250);
         } catch(e) {}
@@ -489,6 +495,7 @@ async function dismissModals() {
     if (overlay && overlay.offsetWidth > 0 && overlay.offsetHeight > 0) {
       if (isKeyboardOrBoardElement(overlay)) continue;
       overlay.click();
+      dismissed = true;
       await sleep(150);
     }
   }
