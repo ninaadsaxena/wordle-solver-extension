@@ -70,7 +70,7 @@ async function runSolver() {
 
   while (turn < 6) {
     console.log(`--- Turn ${turn + 1} ---`);
-    await dismissModals();
+    await quickDismissModals();
     const patternStr = buildPattern(history);
     console.log(`Fetching candidates matching pattern: "${patternStr}"`);
 
@@ -480,11 +480,42 @@ async function dismissModals() {
     }
   }
 
-  // 7. Send Escape key twice to dismiss any lingering popups or drawers
-  dispatchKey("Escape");
-  await sleep(150);
-  dispatchKey("Escape");
-  await sleep(250);
+  // 7. Only send Escape if we actually found and dismissed something
+  if (dismissed) {
+    dispatchKey("Escape");
+    await sleep(200);
+  }
+}
+
+// Lightweight modal check used per-turn — only handles nav drawer & account promos
+// Does NOT send Escape keys (which would disrupt Wordle's input state)
+async function quickDismissModals() {
+  let dismissed = false;
+
+  // Close any visible account promo, login promo, side nav drawer, or modal close button
+  const quickSelectors = [
+    'button[aria-label="Close"]',
+    'button[aria-label="Close navigation"]',
+    '[data-testid="icon-close"]',
+    '[data-testid="modal-close"]',
+    '.Modal-module_closeIcon__25a2G',
+    '[class*="closeIcon"]',
+    '[class*="NavDrawer"] button[aria-label]',
+  ];
+
+  for (const sel of quickSelectors) {
+    try {
+      const btns = document.querySelectorAll(sel);
+      for (const btn of btns) {
+        if (isKeyboardOrBoardElement(btn)) continue;
+        if (btn && btn.offsetWidth > 0 && btn.offsetHeight > 0) {
+          btn.click();
+          dismissed = true;
+          await sleep(200);
+        }
+      }
+    } catch(e) {}
+  }
 }
 
 // Helper: Ensure we never click virtual keyboard or game board elements during modal sweeps
