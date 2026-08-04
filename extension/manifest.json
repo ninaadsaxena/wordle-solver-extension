@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Wordle AI Auto-Solver",
+  "name": "Wordle Auto-Solver",
   "version": "1.1.0",
   "description": "Automatically plays and solves the daily NYT Wordle puzzle for you in one click.",
   "icons": {
@@ -11,7 +11,7 @@
   },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Wordle AI Auto-Solver",
+    "default_title": "Wordle Auto-Solver",
     "default_icon": {
       "16":  "icons/icon16.png",
       "32":  "icons/icon32.png",
