@@ -77,6 +77,8 @@ async function runSolver() {
       const patternStr = buildPattern(history);
       console.log(`Fetching candidates matching pattern: "${patternStr}"`);
 
+      const rawCandidates = await fetchDatamuseWords(patternStr);
+      
       let candidates = rawCandidates.filter(c => 
         !rejectedWords.has(c) && 
         history.every(([g, fb]) => getFeedback(g, c) === fb)
