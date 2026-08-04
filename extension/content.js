@@ -77,24 +77,38 @@ async function runSolver() {
       const patternStr = buildPattern(history);
       console.log(`Fetching candidates matching pattern: "${patternStr}"`);
 
-      const rawCandidates = await fetchDatamuseWords(patternStr);
-      
-      // Enforce yellow/gray history constraints and filter out rejected words
-      const candidates = rawCandidates.filter(c => 
+      let candidates = rawCandidates.filter(c => 
         !rejectedWords.has(c) && 
         history.every(([g, fb]) => getFeedback(g, c) === fb)
       );
 
+      // If standard wildcard search yielded 0 candidates, attempt a targeted Datamuse yellow-letter hint query
+      if (candidates.length === 0) {
+        const yellowLetters = Array.from(new Set(
+          history.flatMap(([g, fb]) => [...g].filter((ch, i) => fb[i] === 'Y'))
+        ));
+
+        if (yellowLetters.length > 0) {
+          console.log(`🔎 Searching Datamuse with targeted yellow letter pattern for: ${yellowLetters.join(',')}`);
+          const hintPattern = `*${yellowLetters.slice(0, 3).join('*')}*`;
+          const hintWords = await fetchDatamuseWords(hintPattern);
+          const hintCandidates = hintWords.filter(c => 
+            !rejectedWords.has(c) && 
+            history.every(([g, fb]) => getFeedback(g, c) === fb)
+          );
+          if (hintCandidates.length > 0) {
+            candidates = hintCandidates;
+            console.log(`✨ Found ${candidates.length} candidates via targeted yellow-letter query!`);
+          }
+        }
+      }
+
       let guess;
 
       if (candidates.length === 0) {
-        console.warn("No live candidates — switching to probe mode...");
+        console.warn("No live candidates found — switching to dynamic probe mode...");
         guess = await getProbeGuess(history, rejectedWords);
-        if (!guess) {
-          console.warn("Probe mode exhausted — cannot continue.");
-          return;
-        }
-        console.log(`🔍 Probe guess: ${guess} (testing unchecked letters)`);
+        console.log(`🔍 Probe guess: ${guess} (probing unchecked letters)`);
       } else if (turn === 0) {
         const availableOpeners = TOP_OPENERS.filter(w => !rejectedWords.has(w));
         guess = availableOpeners[Math.floor(Math.random() * availableOpeners.length)];
@@ -301,8 +315,8 @@ function getAbsentLetters(history) {
   return new Set([...blackSeen].filter(l => !present.has(l)));
 }
 
-// Helper: When probe mode is active, pick a valid word that tests high-frequency
-// untested letters (weighted by English letter frequency).
+// Helper: When probe mode is active, pick a valid probe word to test unchecked letters
+// Uses a 3-tier fallback to GUARANTEE a valid guess is always returned (never returns null)
 async function getProbeGuess(history, rejectedWords = new Set()) {
   const testedLetters = new Set();
   const absentLetters = getAbsentLetters(history);
@@ -315,16 +329,39 @@ async function getProbeGuess(history, rejectedWords = new Set()) {
     'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').filter(l => !testedLetters.has(l))
   );
 
-  const probePool = await fetchDatamuseWords('?????');
-  const validProbes = probePool.filter(word =>
+  let probePool = await fetchDatamuseWords('?????');
+
+  // Tier 1: Probe words with 0 absent letters that test untested letters
+  let validProbes = probePool.filter(word =>
     !rejectedWords.has(word) &&
-    ![...word].some(ch => absentLetters.has(ch))
+    !history.some(([g]) => g === word) &&
+    ![...word].some(ch => absentLetters.has(ch)) &&
+    [...word].some(ch => untestedLetters.has(ch))
   );
 
-  if (validProbes.length === 0) return null;
+  // Tier 2: If Tier 1 is empty, relax absent letter restriction (allow absent letters to test remaining untested letters)
+  if (validProbes.length === 0) {
+    validProbes = probePool.filter(word =>
+      !rejectedWords.has(word) &&
+      !history.some(([g]) => g === word) &&
+      [...word].some(ch => untestedLetters.has(ch))
+    );
+  }
+
+  // Tier 3: If Tier 2 is empty, pick ANY unguessed 5-letter word from probePool or TOP_OPENERS
+  if (validProbes.length === 0) {
+    const fallbackPool = [...probePool, ...TOP_OPENERS, "FUDGY", "CHINK", "JUMBO", "VEXED", "WALKS", "BUNCH", "PLUCK", "GLYPH"];
+    validProbes = fallbackPool.filter(word =>
+      !rejectedWords.has(word) &&
+      !history.some(([g]) => g === word)
+    );
+  }
+
+  // Safety net
+  if (validProbes.length === 0) return "FUDGY";
 
   // Score probe by sum of letter frequency weights of its unique untested letters
-  let bestProbe = null;
+  let bestProbe = validProbes[0];
   let bestScore = -1;
   for (const word of validProbes) {
     const uniqueChars = [...new Set(word.split(''))];
