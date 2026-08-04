@@ -53,122 +53,135 @@ async function runSolver() {
   isSolving = true;
   console.log("🚀 Wordle AI Auto-Solver initiated...");
 
-  await dismissModals();
-  await sleep(1000);
+  try {
+    await dismissModals();
+    await sleep(800);
 
-  if (isAlreadyCompleted()) {
-    console.log("Notice: Today's Wordle has already been completed!");
-    isSolving = false;
-    return;
-  }
+    if (isAlreadyCompleted()) {
+      console.log("Notice: Today's Wordle has already been completed!");
+      return;
+    }
 
-  const existingHistory = getExistingHistory();
-  const history = [...existingHistory];
-  const rejectedWords = new Set();
+    // Pre-fetch probe word pool in background
+    fetchDatamuseWords('?????');
 
-  let turn = history.length;
+    const existingHistory = getExistingHistory();
+    const history = [...existingHistory];
+    const rejectedWords = new Set();
 
-  while (turn < 6) {
-    console.log(`--- Turn ${turn + 1} ---`);
-    await quickDismissModals();
-    const patternStr = buildPattern(history);
-    console.log(`Fetching candidates matching pattern: "${patternStr}"`);
+    let turn = history.length;
 
-    const rawCandidates = await fetchDatamuseWords(patternStr);
-    
-    // Enforce yellow/gray history constraints and filter out rejected words
-    const candidates = rawCandidates.filter(c => 
-      !rejectedWords.has(c) && 
-      history.every(([g, fb]) => getFeedback(g, c) === fb)
-    );
+    while (turn < 6) {
+      console.log(`--- Turn ${turn + 1} ---`);
+      await quickDismissModals();
+      const patternStr = buildPattern(history);
+      console.log(`Fetching candidates matching pattern: "${patternStr}"`);
 
-    let guess;
+      const rawCandidates = await fetchDatamuseWords(patternStr);
+      
+      // Enforce yellow/gray history constraints and filter out rejected words
+      const candidates = rawCandidates.filter(c => 
+        !rejectedWords.has(c) && 
+        history.every(([g, fb]) => getFeedback(g, c) === fb)
+      );
 
-    if (candidates.length === 0) {
-      // No candidates match all constraints — fall back to a probe guess
-      // that tests as many untested letters as possible without using
-      // confirmed-absent letters. This mirrors what a skilled human does
-      // (e.g. guessing POLER / REPEL to check new letters).
-      console.warn("No live candidates — switching to probe mode...");
-      guess = await getProbeGuess(history, rejectedWords);
-      if (!guess) {
-        console.warn("Probe mode exhausted — cannot continue.");
-        isSolving = false;
-        return;
-      }
-      console.log(`🔍 Probe guess: ${guess} (testing unchecked letters)`);
-    } else if (turn === 0) {
-      // Pick a random opening word directly from our 20 curated TOP_OPENERS
-      const availableOpeners = TOP_OPENERS.filter(w => !rejectedWords.has(w));
-      guess = availableOpeners[Math.floor(Math.random() * availableOpeners.length)];
-    } else if (turn === 1 && shouldPlayFreeGuess(history)) {
-      // Turn 2 free-probe strategy: if the opener gave ≤ 2 green/yellow
-      // positions, it's more valuable to test a completely fresh set of
-      // high-frequency letters than to prematurely narrow candidates.
-      const freeGuess = await getProbeGuess(history, rejectedWords);
-      if (freeGuess) {
-        guess = freeGuess;
-        console.log(`🔀 Free second guess: ${guess} (opener gave only ${getUsefulLetterCount(history[0])} useful positions — probing fresh high-yield letters)`);
+      let guess;
+
+      if (candidates.length === 0) {
+        console.warn("No live candidates — switching to probe mode...");
+        guess = await getProbeGuess(history, rejectedWords);
+        if (!guess) {
+          console.warn("Probe mode exhausted — cannot continue.");
+          return;
+        }
+        console.log(`🔍 Probe guess: ${guess} (testing unchecked letters)`);
+      } else if (turn === 0) {
+        const availableOpeners = TOP_OPENERS.filter(w => !rejectedWords.has(w));
+        guess = availableOpeners[Math.floor(Math.random() * availableOpeners.length)];
+      } else if (turn === 1 && shouldPlayFreeGuess(history)) {
+        const freeGuess = await getProbeGuess(history, rejectedWords);
+        if (freeGuess) {
+          guess = freeGuess;
+          console.log(`🔀 Free second guess: ${guess} (opener gave only ${getUsefulLetterCount(history[0])} useful positions — probing fresh high-yield letters)`);
+        } else {
+          guess = await bestGuess(candidates, history, rejectedWords);
+        }
       } else {
         guess = await bestGuess(candidates, history, rejectedWords);
       }
-    } else {
-      guess = await bestGuess(candidates, history, rejectedWords);
+
+      if (!guess) {
+        console.warn("No guess selected!");
+        return;
+      }
+
+      console.log(`Bot guessing: ${guess} (${candidates.length} candidates left)`);
+      await typeGuess(guess);
+      await sleep(600);
+
+      // Check if Wordle rejected the guess (row didn't flip)
+      if (isRowRejected(turn)) {
+        console.warn(`Word '${guess}' was not accepted by Wordle! Clearing row...`);
+        await clearRow();
+        rejectedWords.add(guess);
+        continue; // retry turn
+      }
+
+      // Poll until all 5 tiles finish flipping and reveal state
+      const fb = await waitForFeedback(turn);
+      console.log(`Feedback for ${guess}: ${fb}`);
+
+      if (!fb) {
+        console.error("Failed to read feedback or tiles did not flip!");
+        break;
+      }
+
+      if (fb === "GGGGG") {
+        console.log(`🎉 Solved in ${turn + 1} guesses!`);
+        return;
+      }
+
+      history.push([guess, fb]);
+      turn++;
     }
 
-    if (!guess) {
-      console.warn("No guess selected!");
-      isSolving = false;
-      return;
-    }
-
-    console.log(`Bot guessing: ${guess} (${candidates.length} candidates left)`);
-    await typeGuess(guess);
-    await sleep(2500);
-
-    // Check if Wordle rejected the guess (row didn't flip)
-    if (isRowRejected(turn)) {
-      console.warn(`Word '${guess}' was not accepted by Wordle! Clearing row...`);
-      await clearRow();
-      rejectedWords.add(guess);
-      continue; // retry turn
-    }
-
-    const fb = readFeedback(turn);
-    console.log(`Feedback for ${guess}: ${fb}`);
-
-    if (!fb) {
-      console.error("Failed to read feedback!");
-      isSolving = false;
-      return;
-    }
-
-    if (fb === "GGGGG") {
-      console.log(`🎉 Solved in ${turn + 1} guesses!`);
-      isSolving = false;
-      return;
-    }
-
-    history.push([guess, fb]);
-    turn++;
+    console.log("Game finished!");
+  } catch (err) {
+    console.error("Solver error:", err);
+  } finally {
+    isSolving = false;
   }
-
-  console.log("Game finished!");
-  isSolving = false;
 }
 
-// Helper: Fetch candidates from Datamuse API
+let cachedProbePool = null;
+
+// Helper: Fetch candidates from Datamuse API with timeout and caching
 async function fetchDatamuseWords(pattern) {
+  if (pattern === '?????' && cachedProbePool && cachedProbePool.length > 0) {
+    return cachedProbePool;
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 3500);
+
   try {
     const url = `https://api.datamuse.com/words?sp=${encodeURIComponent(pattern)}&max=1000`;
-    const res = await fetch(url);
+    const res = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-    return data
+    const words = data
       .map(d => d.word.toUpperCase())
       .filter(w => w.length === 5 && /^[A-Z]+$/.test(w));
+
+    if (pattern === '?????' && words.length > 0) {
+      cachedProbePool = words;
+    }
+    return words;
   } catch (err) {
-    console.error("Datamuse API error:", err);
-    return [];
+    clearTimeout(timeoutId);
+    console.warn("Datamuse API fetch failed or timed out, using fallback:", err);
+    return cachedProbePool || TOP_OPENERS;
   }
 }
 
@@ -552,7 +565,7 @@ function dispatchKey(key) {
   document.dispatchEvent(event);
 }
 
-// DOM Helper: Read tile states for row
+// DOM Helper: Read tile states for row (returns null if any tile is still flipping)
 function readFeedback(turnIndex) {
   const rows = document.querySelectorAll('div[class*="Row-module_row__"]');
   if (!rows[turnIndex]) return null;
@@ -563,9 +576,24 @@ function readFeedback(turnIndex) {
   let feedback = "";
   for (let i = 0; i < 5; i++) {
     const state = tiles[i].getAttribute("data-state");
-    feedback += STATE_MAP[state] || "B";
+    if (!state || !["correct", "present", "absent"].includes(state)) {
+      return null; // Tile animation in progress (e.g. "tENTATIVE" or "empty")
+    }
+    feedback += STATE_MAP[state];
   }
   return feedback;
+}
+
+// Poll until all 5 tiles in the row finish flipping and reveal state
+async function waitForFeedback(turnIndex) {
+  const maxWait = 4000;
+  const start = Date.now();
+  while (Date.now() - start < maxWait) {
+    const fb = readFeedback(turnIndex);
+    if (fb) return fb;
+    await sleep(200);
+  }
+  return readFeedback(turnIndex);
 }
 
 function isRowRejected(turnIndex) {
