@@ -681,7 +681,7 @@ function isRowRejected(turnIndex) {
 
 function getExistingHistory() {
   const history = [];
-  const rows = document.querySelectorAll('div[class*="Row-module_row__"]');
+  const rows = getRowElements();
   
   for (let i = 0; i < rows.length; i++) {
     const tiles = rows[i].querySelectorAll('[data-testid="tile"]');
