@@ -4,7 +4,8 @@ An Information-Entropy & Datamuse AI Wordle Auto-Solver packaged as a zero-depen
 
 Works on any Chromium-based browser: **Chrome, Microsoft Edge, Brave, Opera, Vivaldi**.
 
-🔗 **Live Site**: [wordle-solver-extension.vercel.app](https://wordle-solver-extension.vercel.app/)
+🔗 **Live Site**: [wordle-solver-extension.vercel.app](https://wordle-solver-extension.vercel.app/)  
+🛒 **Chrome Web Store**: [Wordle Auto-Solver](https://chromewebstore.google.com/detail/pijohklighjacgongfanehhmhodmlcon)
 
 ---
 
