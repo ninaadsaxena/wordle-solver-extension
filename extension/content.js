@@ -98,10 +98,9 @@ async function runSolver() {
       }
       console.log(`🔍 Probe guess: ${guess} (testing unchecked letters)`);
     } else if (turn === 0) {
-      const validOpeners = TOP_OPENERS.filter(w => candidates.includes(w));
-      guess = validOpeners.length > 0
-        ? validOpeners[Math.floor(Math.random() * validOpeners.length)]
-        : await bestGuess(candidates, history, rejectedWords);
+      // Pick a random opening word directly from our 20 curated TOP_OPENERS
+      const availableOpeners = TOP_OPENERS.filter(w => !rejectedWords.has(w));
+      guess = availableOpeners[Math.floor(Math.random() * availableOpeners.length)];
     } else if (turn === 1 && shouldPlayFreeGuess(history)) {
       // Turn 2 free-probe strategy: if the opener gave ≤ 2 green/yellow
       // positions, it's more valuable to test a completely fresh set of
