@@ -79,51 +79,61 @@ async function runSolver() {
 
       const rawCandidates = await fetchDatamuseWords(patternStr);
       
+      // Enforce Green, Yellow, and confirmed Absent (Black) history constraints
       let candidates = rawCandidates.filter(c => 
         !rejectedWords.has(c) && 
         history.every(([g, fb]) => getFeedback(g, c) === fb)
       );
 
-      // If standard wildcard search yielded 0 candidates, attempt a targeted Datamuse yellow-letter hint query
-      if (candidates.length === 0) {
-        const yellowLetters = Array.from(new Set(
-          history.flatMap(([g, fb]) => [...g].filter((ch, i) => fb[i] === 'Y'))
-        ));
+      // Requirement 4: Targeted Datamuse query if yellow/green letters exist and candidates = 0
+      const revealedLetters = new Set(
+        history.flatMap(([g, fb]) => [...g].filter((ch, i) => fb[i] === 'G' || fb[i] === 'Y'))
+      );
 
-        if (yellowLetters.length > 0) {
-          console.log(`🔎 Searching Datamuse with targeted yellow letter pattern for: ${yellowLetters.join(',')}`);
-          const hintPattern = `*${yellowLetters.slice(0, 3).join('*')}*`;
-          const hintWords = await fetchDatamuseWords(hintPattern);
-          const hintCandidates = hintWords.filter(c => 
-            !rejectedWords.has(c) && 
-            history.every(([g, fb]) => getFeedback(g, c) === fb)
-          );
-          if (hintCandidates.length > 0) {
-            candidates = hintCandidates;
-            console.log(`✨ Found ${candidates.length} candidates via targeted yellow-letter query!`);
-          }
+      if (candidates.length === 0 && revealedLetters.size > 0) {
+        const yellowLetters = Array.from(revealedLetters);
+        const hintPattern = `*${yellowLetters.slice(0, 3).join('*')}*`;
+        console.log(`🔎 Searching Datamuse with targeted pattern: ${hintPattern}`);
+        const hintWords = await fetchDatamuseWords(hintPattern);
+        const hintCandidates = hintWords.filter(c => 
+          !rejectedWords.has(c) && 
+          history.every(([g, fb]) => getFeedback(g, c) === fb)
+        );
+        if (hintCandidates.length > 0) {
+          candidates = hintCandidates;
+          console.log(`✨ Found ${candidates.length} candidates via targeted query!`);
         }
       }
 
       let guess;
 
-      if (candidates.length === 0) {
-        console.warn("No live candidates found — switching to dynamic probe mode...");
-        guess = await getProbeGuess(history, rejectedWords);
-        console.log(`🔍 Probe guess: ${guess} (probing unchecked letters)`);
-      } else if (turn === 0) {
+      if (turn === 0) {
+        // Requirement 1: First guess from TOP_OPENERS list
         const availableOpeners = TOP_OPENERS.filter(w => !rejectedWords.has(w));
         guess = availableOpeners[Math.floor(Math.random() * availableOpeners.length)];
-      } else if (turn === 1 && shouldPlayFreeGuess(history)) {
-        const freeGuess = await getProbeGuess(history, rejectedWords);
-        if (freeGuess) {
-          guess = freeGuess;
-          console.log(`🔀 Free second guess: ${guess} (opener gave only ${getUsefulLetterCount(history[0])} useful positions — probing fresh high-yield letters)`);
+      } else if (turn === 1 && history[0][1] === "BBBBB") {
+        // Requirement 1: If opener gave all black (BBBBB), pick opener from TOP_OPENERS sharing <= 1 letter with opener 1
+        const firstWord = history[0][0];
+        const firstLetters = new Set(firstWord);
+        const lowOverlapOpeners = TOP_OPENERS.filter(w => {
+          if (w === firstWord || rejectedWords.has(w)) return false;
+          const overlap = [...w].filter(ch => firstLetters.has(ch)).length;
+          return overlap <= 1;
+        });
+        if (lowOverlapOpeners.length > 0) {
+          guess = lowOverlapOpeners[Math.floor(Math.random() * lowOverlapOpeners.length)];
+          console.log(`🔀 Opener 1 gave all-black (${firstWord}) -> Picked low-overlap opener 2: ${guess}`);
         } else {
           guess = await bestGuess(candidates, history, rejectedWords);
         }
-      } else {
+      } else if (candidates.length > 0) {
+        // Requirement 2 & 4: Normal Mode — use Shannon Entropy to pick optimal word from Datamuse candidates
         guess = await bestGuess(candidates, history, rejectedWords);
+      } else {
+        // Requirement 3: Dynamic Probe Mode when Datamuse candidates = 0
+        console.warn("No live candidates found — switching to dynamic probe mode...");
+        guess = await getProbeGuess(history, rejectedWords);
+        console.log(`🔍 Probe guess: ${guess}`);
       }
 
       if (!guess) {
@@ -171,282 +181,219 @@ async function runSolver() {
 
 let cachedProbePool = null;
 
-// Official NYT Wordle Solutions & Common 5-Letter Words
-// Guarantees 100% win-rate without ever failing or dropping valid target words
-const WORDLE_DICTIONARY = [
-  "CIGAR", "REBUT", "SNOOP", "STUMP", "BYLAW", "AIMED", "MOTIF", "FETCH", "GUIDE", "ROUND",
-  "LIGHT", "FLICK", "MATCH", "VOMIT", "SHEOL", "PUDGY", "SHINE", "SHORE", "STORE", "STORY",
-  "SMART", "PLANT", "FLOAT", "FOUND", "BOUND", "MOUNT", "TOWER", "TORTU", "TORSO", "MOTOR",
-  "ROTOR", "ABACK", "ABASE", "ABATE", "ABBEY", "ABIDE", "ABOVE", "ABORT", "ABOUT", "ABUSE",
-  "ABYSS", "ACORN", "ACRID", "ACTOR", "ACUTE", "ADAGE", "ADAPT", "ADMIT", "ADOBE", "ADOPT",
-  "ADORE", "ADORN", "AFFIX", "AFIRE", "AFOOT", "AFOUL", "AFTER", "AGAIN", "AGAPE", "AGATE",
-  "AGENT", "AGILE", "AGING", "AGLOW", "AGONY", "AGREE", "AHEAD", "AIDER", "AISLE", "ALARM",
-  "ALBUM", "ALERT", "ALGAE", "ALIBI", "ALIEN", "ALIGN", "ALIKE", "ALIVE", "ALLAY", "ALLEY",
-  "ALLOT", "ALLOW", "ALLOY", "ALOFT", "ALONE", "ALONG", "ALOOF", "ALOUD", "ALPHA", "ALTAR",
-  "ALTER", "AMASS", "AMAZE", "AMBER", "AMBLE", "AMEND", "AMISS", "AMITY", "AMONG", "AMPLE",
-  "AMPLY", "AMUSE", "ANGEL", "ANGER", "ANGLE", "ANGRY", "ANGST", "ANIME", "ANKLE", "ANNEX",
-  "ANNOY", "ANNUL", "ANODE", "ANTIC", "ANVIL", "AORTA", "APART", "APHID", "APNEA", "APPLE",
-  "APPLY", "APRON", "APTLY", "ARBOR", "ARDOR", "ARENA", "ARGUE", "ARISE", "ARMOR", "AROMA",
-  "AROSE", "ARRAY", "ARROW", "ARSON", "ARTSY", "ASCOT", "ASHEN", "ASIDE", "ASKEW", "ASSAY",
-  "ASSET", "ATOLL", "ATONE", "ATTIC", "AUDIO", "AUDIT", "AUGUR", "AUNTY", "AVAIL", "AVERT",
-  "AVIAN", "AVOID", "AWAIT", "AWAKE", "AWARD", "AWARE", "AWASH", "AWFUL", "AWOKE", "AXIAL",
-  "AXIOM", "AXION", "AZURE", "BACON", "BADGE", "BADLY", "BAGEL", "BAGGY", "BAKER", "BALER",
-  "BALMY", "BANAL", "BANJO", "BARGE", "BARON", "BASAL", "BASIC", "BASIL", "BASIN", "BASIS",
-  "BASTE", "BATCH", "BATON", "BATTY", "BAWDY", "BAYOU", "BEACH", "BEADY", "BEARD", "BEAST",
-  "BEECH", "BEEFY", "BEFIT", "BEGAN", "BEGET", "BEGIN", "BEGUN", "BEING", "BELIE", "BELLE",
-  "BELLY", "BELOW", "BENCH", "BERET", "BERRY", "BERTH", "BESET", "BETEL", "BEVEL", "BEZEL",
-  "BIBLE", "BICEP", "BIDDY", "BIGOT", "BILGE", "BILLY", "BINGE", "BINGO", "BIOME", "BIRCH",
-  "BIRTH", "BISON", "BITTY", "BLACK", "BLADE", "BLAME", "BLAND", "BLANK", "BLARE", "BLAST",
-  "BLAZE", "BLEAK", "BLEAT", "BLEED", "BLEEP", "BLEND", "BLESS", "BLIMP", "BLIND", "BLINK",
-  "BLISS", "BLITZ", "BLOAT", "BLOCK", "BLOKE", "BLOND", "BLOOD", "BLOOM", "BLOWN", "BLUER",
-  "BLUFF", "BLUNT", "BLURT", "BLUSH", "BOARD", "BOAST", "BOBBY", "BONEY", "BONGO", "BONUS",
-  "BOOBY", "BOOST", "BOOTH", "BOOTY", "BOOZE", "BOOZY", "BORAX", "BORNE", "BOSOM", "BOSSY",
-  "BOTCH", "BOUGH", "BOULE", "BOUND", "BOWEL", "BOXER", "BRACE", "BRAID", "BRAIN", "BRAKE",
-  "BRAND", "BRASH", "BRASS", "BRAVE", "BRAVO", "BRAWL", "BRAWN", "BREAD", "BREAK", "BREED",
-  "BRIAR", "BRIBE", "BRICK", "BRIDE", "BRIEF", "BRINE", "BRING", "BRINK", "BRINY", "BRISK",
-  "BROAD", "BROIL", "BROKE", "BROOD", "BROOK", "BROOM", "BROTH", "BROWN", "BRUNT", "BRUSH",
-  "BRUTE", "BUDDY", "BUDGE", "BUGGY", "BUGLE", "BUILD", "BUILT", "BULGE", "BULKY", "BULLY",
-  "BUNCH", "BUNNY", "BURLY", "BURNT", "BURST", "BUSHY", "BUTCH", "BUTTE", "BUXOM", "BUYER",
-  "BYLAW", "CABLE", "CACAO", "CACHE", "CACTUS", "CADDY", "CADET", "CAGEY", "CAIRN", "CAMEL",
-  "CAMEO", "CANAL", "CANDY", "CANNY", "CANOE", "CANON", "CAPER", "CAPUT", "CARAT", "CARGO",
-  "CAROL", "CARRY", "CARVE", "CASTE", "CATCH", "CATER", "CATTY", "CAULK", "CAUSE", "CAVIL",
-  "CEASE", "CEDAR", "CELLO", "CHAFE", "CHAFF", "CHAIN", "CHAIR", "CHALK", "CHAMP", "CHANT",
-  "CHAOS", "CHARD", "CHARM", "CHART", "CHASE", "CHASM", "CHEAP", "CHEAT", "CHECK", "CHEEK",
-  "CHEER", "CHEESE", "CHEF", "CHERRY", "CHESS", "CHEST", "CHICK", "CHIDE", "CHIEF", "CHILD",
-  "CHILI", "CHILL", "CHIME", "CHINA", "CHIRP", "CHOCK", "CHOIR", "CHOKE", "CHORD", "CHORE",
-  "CHOSE", "CHUCK", "CHUMP", "CHUNK", "CHURN", "CHUTE", "CIDER", "CIGAR", "CINCH", "CIRCA",
-  "CIVIC", "CIVIL", "CLACK", "CLAIM", "CLAMP", "CLANG", "CLANK", "CLASH", "CLASP", "CLASS",
-  "CLEAN", "CLEAR", "CLEAT", "CLEFT", "CLERK", "CLICK", "CLIFF", "CLIMB", "CLING", "CLINK",
-  "CLOAK", "CLOCK", "CLONE", "CLOSE", "CLOTH", "CLOUD", "CLOUT", "CLOVE", "CLOWN", "CLUCK",
-  "CLUED", "CLUMP", "CLUNG", "COACH", "COAST", "COBRA", "COCOA", "COLON", "COLOR", "COMET",
-  "COMFY", "COMIC", "COMMA", "CONCH", "CONDO", "CONIC", "COPSE", "CORAL", "CORER", "CORNY",
-  "COUCH", "COUGH", "COULD", "COUNT", "COUPE", "COURT", "COVEN", "COVER", "COVET", "COVEY",
-  "COWER", "COYLY", "CRACK", "CRAFT", "CRAMP", "CRANE", "CRANK", "CRASH", "CRASS", "CRATE",
-  "CRAVE", "CRAWL", "CRAZE", "CRAZY", "CREAK", "CREAM", "CREDO", "CREED", "CREEK", "CREEP",
-  "CREME", "CREPE", "CREPT", "CRESS", "CREST", "CRIED", "CRIER", "CRIME", "CRIMP", "CRISP",
-  "CROAK", "CROCK", "CRONY", "CROOK", "CROSS", "CROUP", "CROWD", "CROWN", "CRUDE", "CRUEL",
-  "CRUMB", "CRUMP", "CRUSH", "CRUST", "CRYPT", "CUBIC", "CUMIN", "CURIO", "CURLY", "CURRY",
-  "CURSE", "CURVE", "CURVY", "CUTIE", "CYBER", "CYCLE", "CYNIC", "DADDY", "DAILY", "DAIRY",
-  "DAISY", "DANCE", "DANDY", "DATUM", "DAUNT", "DEALT", "DEATH", "DEBAR", "DEBIT", "DEBUG",
-  "DEBUT", "DECAL", "DECAY", "DECOR", "DECOY", "DECRY", "DEFER", "DEIGN", "DEITY", "DELAY",
-  "DELTA", "DELVE", "DEMON", "DEMUR", "DENIM", "DENSE", "DEPOT", "DEPTH", "DERBY", "DETER",
-  "DETOX", "DEUCE", "DEVIL", "DIARY", "DICEY", "DIGIT", "DILLY", "DIMLY", "DINER", "DINGO",
-  "DINGY", "DIODE", "DIRGE", "DISCO", "DITCH", "DITTO", "DITTY", "DIVER", "DIZZY", "DODGE",
-  "DODGY", "DOGMA", "DOING", "DOLLY", "DONOR", "DONUT", "DOPEY", "DOUBT", "DOUGH", "DOWDY",
-  "DOWEL", "DOWNY", "DOWRY", "DOZEN", "DRAFT", "DRAIN", "DRAKE", "DRAMA", "DRANK", "DRAPE",
-  "DRAWL", "DRAWN", "DREAD", "DREAM", "DRESS", "DRIED", "DRIER", "DRIFT", "DRILL", "DRINK",
-  "DRIVE", "DROIT", "DROLL", "DRONE", "DROOL", "DROOP", "DROSS", "DROVE", "DROWN", "DRUID",
-  "DRUNK", "DRYER", "DRYLY", "DUCHY", "DULLY", "DUMMY", "DUMPY", "DUNCE", "DUSKY", "DUSTY",
-  "DUTCH", "DUVET", "DWARF", "DWELL", "DWELT", "DYING", "EAGER", "EAGLE", "EARLY", "EARTH",
-  "EASEL", "EATEN", "EATER", "EBONY", "ECLAT", "EDICT", "EDIFY", "EERIE", "EGRET", "EIGHT",
-  "EJECT", "EKING", "ELATE", "ELBOW", "ELDER", "ELECT", "ELEGY", "ELFIN", "ELIDE", "ELITE",
-  "ELOPE", "ELUDE", "EMAIL", "EMBED", "EMBER", "EMCEE", "EMPTY", "ENACT", "ENDOW", "ENEMA",
-  "ENEMY", "ENJOY", "ENNUI", "ENOKI", "ENROL", "ENTER", "ENTRY", "ENVOY", "EPOCH", "EPOXY",
-  "EQUAL", "EQUIP", "ERASE", "ERECT", "ERODE", "ERROR", "ERUPT", "ESSAY", "ESTER", "ETHER",
-  "ETHIC", "ETHOS", "ETUDE", "EVADE", "EVENT", "EVERY", "EVICT", "EVOKE", "EXACT", "EXALT",
-  "EXCEL", "EXERT", "EXILE", "EXIST", "EXPEL", "EXTOL", "EXTRA", "EXULT", "EYING", "FABLE",
-  "FACET", "FAINT", "FAIRY", "FAITH", "FALSE", "FANCY", "FANNY", "FARCE", "FATAL", "FATTY",
-  "FAULT", "FAUNA", "FAVOR", "FEAST", "FECAL", "FEIGN", "FELLA", "FELON", "FEMUR", "FENCE",
-  "FERAL", "FERRY", "FETAL", "FETCH", "FETID", "FETUS", "FEVER", "FEWER", "FIBER", "FIBRE",
-  "FICUS", "FIELD", "FIEND", "FIERY", "FIFTH", "FIFTY", "FIGHT", "FILER", "FILET", "FILLY",
-  "FILMY", "FILTH", "FINAL", "FINCH", "FINER", "FIRST", "FISHY", "FIXER", "FIZZY", "FJORD",
-  "FLACK", "FLAIL", "FLAIR", "FLAKE", "FLAKY", "FLAME", "FLANK", "FLARE", "FLASH", "FLASK",
-  "FLECK", "FLEET", "FLESH", "FLICK", "FLIER", "FLING", "FLINT", "FLIRT", "FLOAT", "FLOCK",
-  "FLOOD", "FLOOR", "FLORA", "FLOSS", "FLOUR", "FLOUT", "FLOWN", "FLUFF", "FLUID", "FLUKE",
-  "FLUME", "FLUNG", "FLUNK", "FLUSH", "FLUTE", "FLYER", "FOAMY", "FOCAL", "FOCUS", "FOGGY",
-  "FOIST", "FOLIO", "FOLLY", "FORAY", "FORCE", "FORGO", "FORTE", "FORTH", "FORTY", "FORUM",
-  "FOUND", "FOYER", "FRAIL", "FRAME", "FRANK", "FRAUD", "FREAK", "FREED", "FREER", "FRESH",
-  "FRIAR", "FRIED", "FRILL", "BRISK", "FROCK", "FROND", "FRONT", "FROST", "FROTH", "FROWN",
-  "FROZE", "FRUIT", "FUDGE", "FUGUE", "FULLY", "FUNGI", "FUNKY", "FUNNY", "FUROR", "FURRY",
-  "FUSSY", "FUZZY", "GAFFE", "GAILY", "GAMER", "GAMMA", "GAMUT", "GAUDY", "GAUNT", "GAUZE",
-  "GAUZY", "GAVEL", "GAZEBO", "GECKO", "GEESE", "GENIE", "GENRE", "GHOST", "GHOUL", "GIANT",
-  "GIDDY", "GIPSY", "GIRLY", "GIRTH", "GIVEN", "GIVER", "GLADE", "GLAND", "GLARE", "GLASS",
-  "GLAZE", "GLEAM", "GLEAN", "GLIDE", "GLINT", "GLOAT", "GLOBE", "GLOOM", "GLORY", "GLOSS",
-  "GLOVE", "GLYPH", "GNASH", "GNOME", "GODLY", "GOING", "GOLEM", "GONER", "GOODLY", "GOOSE",
-  "GORGE", "GOUGE", "GOURD", "GRACE", "GRADE", "GRAFT", "GRAIL", "GRAIN", "GRAND", "GRANT",
-  "GRAPE", "GRAPH", "GRASP", "GRASS", "GRATE", "GRAVE", "GRAVY", "GRAZE", "GREAT", "GREED",
-  "GREEN", "GREET", "GRIEF", "GRILL", "GRIME", "GRIMY", "GRIND", "GRIPY", "GRIST", "GRITTY",
-  "GROAN", "GROIN", "GROOM", "GROPE", "GROSS", "GROUP", "GROUT", "GROVE", "GROWL", "GROWN",
-  "GRUEL", "GRUFF", "GRUNT", "GUARD", "GUAVA", "GUESS", "GUEST", "GUIDE", "GUILD", "GUILE",
-  "GUILT", "GUISE", "GULCH", "GULLY", "GUMBO", "GUMMY", "GUPPY", "GUSTO", "GUSTY", "GYPSY",
-  "HABIT", "HAIRY", "HALVE", "HANDY", "HAPPY", "HARDY", "HAREM", "HARPY", "HARRY", "HARSH",
-  "HASTE", "HASTY", "HATCH", "HATER", "HAUNT", "HAUTE", "HAVEN", "HAVOC", "HAZEL", "HEADY",
-  "HEARD", "HEART", "HEATH", "HEAVE", "HEAVY", "HEDGE", "HEFTY", "HEIST", "HELIX", "HELLO",
-  "HENCE", "HERON", "HILLY", "HINGE", "HIPPO", "HIPPY", "HITCH", "HOARD", "HOBBY", "HOIST",
-  "HOLLY", "HOMER", "HONEY", "HONOR", "HORDE", "HORNY", "HORSE", "HOTEL", "HOTLY", "HOUND",
-  "HOUSE", "HOVEL", "HOVER", "HOWDY", "HUMAN", "HUMID", "HUMOR", "HUMPH", "HUMUS", "HUNCH",
-  "HUNKY", "HURRY", "HUSKY", "HUSSY", "HUTCH", "HYDRO", "HYENA", "HYMEN", "HYPER", "ICILY",
-  "ICING", "IDEAL", "IDIOM", "IDIOT", "IDLER", "IDYLL", "IGLOO", "ILIAC", "IMAGE", "IMBUE",
-  "IMPEL", "IMPLY", "INANE", "INBOX", "INCUR", "INDEX", "INEPT", "INERT", "INFER", "INGOT",
-  "INLAY", "INLET", "INNER", "INPUT", "INTER", "INTRO", "IONIC", "IRATE", "IRONIC", "ISLET",
-  "ISSUE", "ITCHY", "IVORY", "JAZZY", "JELLY", "JERKY", "JETTY", "JEWEL", "JIFFY", "JOINT",
-  "JOKER", "JOLLY", "JOUST", "JUDGE", "JUICE", "JUICY", "JUMBO", "JUMPY", "JUNTA", "JUNTO",
-  "JUROR", "KAPPA", "KARMA", "KAYAK", "KHAKI", "KINKY", "KIOSK", "KITTY", "KNACK", "KNAVE",
-  "KNEAD", "KNEEL", "KNELT", "KNIFE", "KNOCK", "KNOLL", "KNOWN", "KOALA", "KRILL", "LABEL",
-  "LABOR", "LADLE", "LAGER", "LANCE", "LANKY", "LAPEL", "LAPSE", "LARGE", "LARVA", "LASSO",
-  "LATCH", "LATER", "LATHE", "LATTE", "LAUGH", "LAYER", "LEACH", "LEAFY", "LEAKY", "LEANT",
-  "LEAP", "LEARN", "LEASE", "LEASH", "LEAST", "LEAVE", "LEDGE", "LEECH", "LEERY", "LEFTY",
-  "LEGAL", "LEGGY", "LEMON", "LEMUR", "LEPER", "LEVEL", "LEVER", "LIBEL", "LIEGE", "LIGHT",
-  "LIKEN", "LILAC", "LIMBO", "LIMIT", "LINEN", "LINER", "LINGO", "LIPID", "LITHE", "LIVER",
-  "LIVID", "LLAMA", "LOAMY", "LOATH", "LOBBY", "LOCAL", "LOCUS", "LODGE", "LOFTY", "LOGIC",
-  "LOGIN", "LOOPY", "LOOSE", "LORRY", "LOSER", "LOUSE", "LOUSY", "LOVER", "LOWER", "LOWLY",
-  "LOYAL", "LUCID", "LUCKY", "LUMEN", "LUMPY", "LUNCH", "LUNGE", "LUPUS", "LURCH", "LURID",
-  "LUSTY", "LYING", "LYMPH", "LYRIC", "MACAW", "MACHO", "MACRO", "MADAM", "MADLY", "MAFIA",
-  "MAGIC", "MAGMA", "MAIZE", "MAJOR", "MAKER", "MAMBO", "MAMMA", "MAMMY", "MANGA", "MANGE",
-  "MANGO", "MANGY", "MANIA", "MANIC", "MANLY", "MANOR", "MAPLE", "MARCH", "MARRY", "MARSH",
-  "MASON", "MASSE", "MATCH", "MATEY", "MAUVE", "MAXIM", "MAYBE", "MAYOR", "MEALY", "MEANT",
-  "MEATY", "MECCA", "MEDAL", "MEDIA", "MEDIC", "MELON", "MERCY", "MERGE", "MERIT", "MERRY",
-  "METRO", "MICRO", "MIDGE", "MIDST", "MIGHT", "MILKY", "MIMIC", "MINCE", "MINER", "MINIM",
-  "MINOR", "MINTY", "MINUS", "MIRTH", "MISER", "MISSY", "MOCHA", "MODAL", "MODEL", "MODEM",
-  "MOIST", "MOLAR", "MOLDY", "MONEY", "MONTH", "MOODY", "MOOSE", "MORAL", "MORON", "MORPH",
-  "MOSSY", "MOTEL", "MOTIF", "MOTOR", "MOTTO", "MOULT", "MOUND", "MOUNT", "MOURN", "MOUSE",
-  "MOUTH", "MOVER", "MOVIE", "MOWER", "MUCKY", "MUCUS", "MUDDY", "MULCH", "MUMMY", "MUNCH",
-  "MURAL", "MURKY", "MUSEUM", "MUSKY", "MUSTY", "MYTHIC", "NAIVE", "NANNY", "NASAL", "NASTY",
-  "NATAL", "NAVAL", "NAVEL", "NEEDY", "NEIGH", "NERDY", "NERVE", "NEVER", "NEWER", "NEWLY",
-  "NICER", "NICHE", "NIECE", "NIGHT", "NINTH", "NOBLE", "NOBLY", "NOISE", "NOISY", "NOMAD",
-  "NOOSE", "NORTH", "NOTCH", "NOVEL", "NUDGE", "NURSE", "NUTTY", "NYLON", "NYMPH", "OAKEN",
-  "OBESE", "OCCUR", "OCEAN", "OCTAL", "OCTET", "ODDER", "ODDLY", "OFFAL", "OFFER", "OFTEN",
-  "OLDEN", "OLDER", "OLIVE", "OMBRE", "OMEGA", "ONION", "ONSET", "OPERA", "OPINE", "OPIUM",
-  "OPTIC", "ORBIT", "ORDER", "ORGAN", "OTHER", "OTTER", "OUGHT", "OUNCE", "OUTDO", "OUTER",
-  "OUTGO", "OVARY", "OVATE", "OVERT", "OVINE", "OVOID", "OWING", "OWNER", "OXIDE", "OZONE",
-  "PADDY", "PAGAN", "PAINT", "PALER", "PALSY", "PANEL", "PANIC", "PANSY", "PAPAL", "PAPER",
-  "PARER", "PARRY", "PARSE", "PARTY", "PASTA", "PASTE", "PASTY", "PATCH", "PATIO", "PATSY",
-  "PATTY", "PAUSE", "PAYEE", "PAYER", "PEACE", "PEACH", "PEARL", "PECAN", "PEDAL", "PENAL",
-  "PENCE", "PENNY", "PERCH", "PERIL", "PERKY", "PESKY", "PESTO", "PETAL", "PETTY", "PHASE",
-  "PHONE", "PHONY", "PHOTO", "PIANO", "PICKY", "PIECE", "PIETY", "PIGGY", "PILOT", "PINCH",
-  "PINEY", "PINKY", "PINTO", "PIPER", "PIQUE", "PITCH", "PITHY", "PIVOT", "PIXEL", "PIXIE",
-  "PIZZA", "PLACE", "PLAID", "PLAIN", "PLAIT", "PLANE", "PLANK", "PLANT", "PLATE", "PLAZA",
-  "PLEAD", "PLEAT", "PLIED", "PLIER", "PLUCK", "PLUMB", "PLUME", "PLUMP", "PLUNK", "PLUSH",
-  "POESY", "POINT", "POISE", "POKER", "POLAR", "POLKA", "POLYP", "POOCH", "POPPY", "PORCH",
-  "POSER", "POSIT", "POSSE", "POUCH", "POUND", "POUTY", "POWER", "PRANK", "PRAWN", "PREEN",
-  "PRESS", "PRICE", "PRICK", "PRIDE", "PRIED", "PRIME", "PRIMO", "PRINT", "PRIOR", "PRISM",
-  "PRIVY", "PRIZE", "PROBE", "PRONE", "PRONG", "PROOF", "PROSE", "PROUD", "PROVE", "PROWL",
-  "PROXY", "PRUDE", "PRUNE", "PSALM", "PUBIC", "PUDGY", "PUFFY", "PULPY", "PULSE", "PUNCH",
-  "PUPIL", "PUPPY", "PUREE", "PURER", "PURGE", "PURSE", "PUSHY", "PUTTY", "PYGMY", "QUACK",
-  "QUAIL", "QUAKE", "QUALM", "QUART", "QUASI", "QUEEN", "QUEER", "QUELL", "QUERY", "QUEST",
-  "QUEUE", "QUICK", "QUIET", "QUILL", "QUILT", "QUIRK", "QUITE", "QUOTA", "QUOTE", "QUOTH",
-  "RABBI", "RABID", "RACER", "RADAR", "RADII", "RADIO", "RAINY", "RAISE", "RAJAH", "RALLY",
-  "RALPH", "RAMEN", "RANCH", "RANDY", "RANGE", "RAPID", "RARER", "RASPY", "RATIO", "RATTY",
-  "RAVEN", "RAYON", "RAZOR", "REACH", "REACT", "READY", "REALM", "REARM", "REBAR", "REBEL",
-  "REBUS", "REBUT", "RECAP", "RECUR", "RECUT", "REEDY", "REFER", "REFIT", "REGAL", "REHAB",
-  "REIGN", "RELAX", "RELAY", "RELIC", "REMIT", "RENAL", "RENEW", "REPAY", "REPEL", "REPLY",
-  "RERUN", "RESET", "RESIN", "RETCH", "RETRO", "RETRY", "REUSE", "REVEL", "REVUE", "RHINO",
-  "RHYME", "RIDER", "RIDGE", "RIFLE", "RIGHT", "RIGID", "RIGOR", "RINSE", "RIPEN", "RIPER",
-  "RISEN", "RISER", "RISKY", "RIVAL", "RIVER", "RIVET", "ROACH", "ROAST", "ROBIN", "ROBOT",
-  "ROCKY", "RODEO", "ROGUE", "ROOMY", "ROOST", "ROTOR", "ROUGE", "ROUGH", "ROUND", "ROUSE",
-  "ROUTE", "ROVER", "ROWER", "ROYAL", "RUDDY", "RUDER", "RUGBY", "RULER", "RUMBA", "RUMOR",
-  "RUPEE", "RURAL", "RUSTY", "SADLY", "SAFER", "SAINT", "SALAD", "SALLY", "SALON", "SALSA",
-  "SALTY", "SALVE", "SALVO", "SANDY", "SANER", "SAPPY", "SASSY", "SATIN", "SATYR", "SAUCE",
-  "SAUCY", "SAUNA", "SAUTE", "SAVOR", "SAVOY", "SAVVY", "SCALD", "SCALE", "SCALP", "SCALY",
-  "SCAMP", "SCANT", "SCARE", "SCARF", "SCARY", "SCENE", "SCENT", "SCHWA", "SCOFF", "SCOLD",
-  "SCONE", "SCOOP", "SCOPE", "SCORE", "SCORN", "SCOUR", "SCOUT", "SCOWL", "SCRAM", "SCRAP",
-  "SCREE", "SCREW", "SCRUB", "SCRUM", "SCUBA", "SEDAN", "SEEDY", "SEGUE", "SEIZE", "SEMEN",
-  "SENSE", "SEPIA", "SERIF", "SERUM", "SERVE", "SETUP", "SEVEN", "SEVER", "SEWER", "SHACK",
-  "SHADE", "SHADY", "SHAFT", "SHAKE", "SHAKY", "SHALE", "SHALL", "SHALT", "SHAME", "SHANK",
-  "SHAPE", "SHARD", "SHARE", "SHARK", "SHARP", "SHAVE", "SHAWL", "SHEAR", "SHEEN", "SHEEP",
-  "SHEER", "SHEET", "SHEIK", "SHELF", "SHELL", "SHIED", "SHIFT", "SHINE", "SHINY", "SHIRE",
-  "SHIRK", "SHIRT", "SHOAL", "SHOCK", "SHONE", "SHOOK", "SHOOT", "SHORE", "SHORN", "SHORT",
-  "SHOUT", "SHOVE", "SHOWN", "SHOWY", "SHREW", "SHRUB", "SHRUG", "SHUCK", "SHUNT", "SHUSH",
-  "SHYLY", "SIEGE", "SIEVE", "SIGHT", "SIGMA", "SILKY", "SILLY", "SINCE", "SINEW", "SINGE",
-  "SIREN", "SISSY", "SIXTH", "SIXTY", "SKATE", "SKIER", "SKIFF", "SKILL", "SKIMP", "SKIRT",
-  "SKULK", "SKULL", "SKUNK", "SLACK", "SLAIN", "SLANG", "SLANT", "SLASH", "SLATE", "SLEEK",
-  "SLEEP", "SLEET", "SLEPT", "SLICE", "SLICK", "SLIDE", "SLIME", "SLIMY", "SLING", "SLINK",
-  "SLOOP", "SLOPE", "SLOSH", "SLOTH", "SLUMP", "SLUNG", "SLUNK", "SLURP", "SLUSH", "SLYLY",
-  "SMACK", "SMALL", "SMART", "SMASH", "SMEAR", "SMELL", "SMELT", "SMILE", "SMIRK", "SMITE",
-  "SMITH", "SMOCK", "SMOKE", "SMOKY", "SMOTE", "SNACK", "SNAIL", "SNAKE", "SNAKY", "SNARE",
-  "SNARL", "SNEAK", "SNEER", "SNIDE", "SNIFF", "SNIPE", "SNOOP", "SNORE", "SNORT", "SNOUT",
-  "SNOWY", "SNUCK", "SNUFF", "SOAPY", "SOBER", "SOGGY", "SOLAR", "SOLID", "SOLVE", "SONAR",
-  "SONIC", "SOOTH", "SOOTY", "SORRY", "SOUND", "SOUTH", "SOWER", "SPACE", "SPADE", "SPEAK",
-  "SPEAR", "SPECK", "SPEED", "SPELL", "SPELT", "SPEND", "SPENT", "SPICE", "SPICY", "SPIED",
-  "SPIEL", "SPIKE", "SPIKY", "SPILL", "SPILT", "SPINE", "SPINY", "SPIRE", "SPITE", "SPLAT",
-  "SPLIT", "SPOIL", "SPOKE", "SPOOF", "SPOOK", "SPOOL", "SPOON", "SPORE", "SPORT", "SPOUT",
-  "SPRAY", "SPREE", "SPRIG", "SPURT", "SQUAD", "SQUAT", "SQUIB", "STACK", "STAFF", "STAGE",
-  "STAID", "STAIN", "STAIR", "STAKE", "STALE", "STALK", "STALL", "STAMP", "STAND", "STANK",
-  "STARE", "STARK", "START", "STASH", "STATE", "STAVE", "STEAD", "STEAK", "STEAL", "STEAM",
-  "STEED", "STEEL", "STEEP", "STEER", "STEIN", "STERN", "STICK", "STIFF", "STILL", "STILT",
-  "STING", "STINK", "STINT", "STOCK", "STOIC", "STOKE", "STOLE", "STOMP", "STONE", "STONY",
-  "STOOD", "STOOL", "STOOP", "STORE", "STORK", "STORM", "STORY", "STOUT", "STOVE", "STRAP",
-  "STRAW", "STRAY", "STRIP", "STRUT", "STUCK", "STUDY", "STUFF", "STUMP", "STUNG", "STUNK",
-  "STUNT", "STYLE", "SUAVE", "SUGAR", "SUING", "SUITE", "SULKY", "SULLEN", "SUMAC", "SUNNY",
-  "SUPER", "SURER", "SURGE", "SURLY", "SUSHI", "SWAMI", "SWAMP", "SWARM", "SWASH", "SWATH",
-  "SWEAR", "SWEAT", "SWEEP", "SWEET", "SWELL", "SWEPT", "SWIFT", "SWILL", "SWINE", "SWING",
-  "SWIRL", "SWISH", "SWOON", "SWOOP", "SWORD", "SWORE", "SWORN", "SWUNG", "SYNOD", "SYRUP",
-  "TABBY", "TABLE", "TABOO", "TACIT", "TACKY", "TAFFY", "TAINT", "TAKEN", "TAKER", "TALLY",
-  "TALON", "TAMER", "TANGO", "TANGY", "TAPER", "TAPIR", "TARDY", "TAROT", "TASTE", "TASTY",
-  "TATTY", "TAUNT", "TAWNY", "TEACH", "TEARY", "TEASE", "TEDDY", "TEETH", "TEMPO", "TENET",
-  "TENOR", "TENSE", "TENTH", "TEPEE", "TEPID", "TERRA", "TERSE", "TESTY", "THANK", "THEFT",
-  "THEIR", "THEME", "THERE", "THESE", "THETA", "THICK", "THIEF", "THIGH", "THING", "THINK",
-  "THIRD", "THONG", "THORN", "THOSE", "THREE", "THREW", "THROB", "THROW", "THRUM", "THUMB",
-  "THUMP", "THYME", "TIARA", "TIBIA", "TIDAL", "TIGER", "TIGHT", "TILDE", "TIMBER", "TIMID",
-  "TIPSY", "TITAN", "TITHE", "TITLE", "TOAST", "TODAY", "TODDY", "TOKEN", "TONAL", "TONGA",
-  "TONIC", "TOOTH", "TOPAZ", "TOPIC", "TORCH", "TORSO", "TORUS", "TOTAL", "TOTEM", "TOUCH",
-  "TOUGH", "TOWEL", "TOWER", "TOXIC", "TRACE", "TRACK", "TRACT", "TRADE", "TRAIL", "TRAIN",
-  "TRAIT", "TRAMP", "TRASH", "TRAWL", "TREAD", "TREAT", "TREND", "TRIAD", "TRIAL", "TRIBE",
-  "TRICE", "TRICK", "TRIED", "TRIPE", "TRITE", "TROLL", "TROOP", "TROPE", "TROUT", "TROVE",
-  "TRUCE", "TRUCK", "TRUER", "TRULY", "TRUMP", "TRUNK", "TRUSS", "TRUST", "TRUTH", "TRYST",
-  "TUBAL", "TUBER", "TULIP", "TULLE", "TUMOR", "TUNIC", "TURBO", "TUTOR", "TWANG", "TWEAK",
-  "TWEED", "TWEET", "TWICE", "TWINE", "TWIRL", "TWIST", "TYING", "ULCER", "ULTRA", "UMBRA",
-  "UNCLE", "UNCAP", "UNDER", "UNDID", "UNDUE", "UNFED", "UNIFY", "UNION", "UNITE", "UNITY",
-  "UNLIT", "UNMET", "UNSET", "UNTIE", "UNTIL", "UNWED", "UNZIP", "UPPER", "UPSET", "URBAN",
-  "URINE", "USAGE", "USHER", "USING", "USUAL", "USURP", "UTTER", "VAGUE", "VALET", "VALID",
-  "VALOR", "VALUE", "VALVE", "VAPID", "VAPOR", "VAULT", "VAUNT", "VEGAN", "VENOM", "VENUE",
-  "VERGE", "VERSE", "VERSO", "VERVE", "VICAR", "VIDEO", "VIGIL", "VIGOR", "VILLA", "VINYL",
-  "VIOLA", "VIPER", "VIRAL", "VIRUS", "VISIT", "VISOR", "VISTA", "VITAL", "VIVID", "VIXEN",
-  "VOCAL", "VODKA", "VOGUE", "VOICE", "VOILA", "VOMIT", "VOTER", "VOUCH", "VOWEL", "VYING",
-  "WACKY", "WAFER", "WAGER", "WAGON", "WAIST", "WAIVE", "WALTZ", "WARTY", "WASTE", "WATCH",
-  "WATER", "WAVER", "WAXEN", "WEARY", "WEAVE", "WEDGE", "WEEDY", "WEIGH", "WEIRD", "WELCH",
-  "WELSH", "WHACK", "WHALE", "WHARF", "WHEAT", "WHEEL", "WHELK", "WHERE", "WHICH", "WHIFF",
-  "WHILE", "WHINE", "WHINY", "WHIRL", "WHISK", "WHITE", "WHOLE", "WHOOP", "WHOSE", "WIDEN",
-  "WIDER", "WIDOW", "WIDTH", "WIELD", "WIGHT", "WILLY", "WIMPY", "WINCE", "WINCH", "WINDY",
-  "WISER", "WISPY", "WITCH", "WITTY", "WOKEN", "WOMAN", "WOMEN", "WOODY", "WOOER", "WOOLY",
-  "WOOZY", "WORDY", "WORLD", "WORRY", "WORSE", "WORST", "WORTH", "WOULD", "WOUND", "WOVEN",
-  "WRACK", "WRATH", "WREAK", "WRECK", "WREST", "WRING", "WRIST", "WRITE", "WRONG", "WROTE",
-  "WRUNG", "WRYLY", "YACHT", "YEARN", "YEAST", "YIELD", "YOUNG", "YOUTH", "ZEBRA"
-];
-
-function matchPattern(word, pattern) {
-  if (word.length !== 5) return false;
-  for (let i = 0; i < 5; i++) {
-    if (pattern[i] !== '?' && pattern[i] !== word[i]) {
-      return false;
-    }
+// Helper: Fetch candidates dynamically from Datamuse API with timeout, caching & reranking (Requirement 5)
+async function fetchDatamuseWords(pattern) {
+  if (pattern === '?????' && cachedProbePool && cachedProbePool.length > 0) {
+    return cachedProbePool;
   }
-  return true;
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 3500);
+
+  try {
+    const url = `https://api.datamuse.com/words?sp=${encodeURIComponent(pattern)}&max=1000`;
+    const res = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    let words = data
+      .map(d => d.word.toUpperCase())
+      .filter(w => /^[A-Z]{5}$/.test(w));
+
+    // Rerank words by letter frequency naturalness score to filter out obscure terms (Requirement 5)
+    words.sort((a, b) => getWordNaturalnessScore(b) - getWordNaturalnessScore(a));
+
+    if (pattern === '?????' && words.length > 0) {
+      cachedProbePool = words;
+    }
+    return words;
+  } catch (err) {
+    clearTimeout(timeoutId);
+    console.warn("Datamuse API fetch failed or timed out, using fallback:", err);
+    return cachedProbePool || TOP_OPENERS;
+  }
 }
 
-// Helper: Fetch candidates dynamically from Datamuse API + WORDLE_DICTIONARY with strict 5-letter filtering
-async function fetchDatamuseWords(pattern) {
-  let datamuseResults = [];
-  if (pattern === '?????' && cachedProbePool && cachedProbePool.length > 0) {
-    datamuseResults = cachedProbePool;
-  } else {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3500);
-
-    try {
-      const url = `https://api.datamuse.com/words?sp=${encodeURIComponent(pattern)}&max=1000`;
-      const res = await fetch(url, { signal: controller.signal });
-      clearTimeout(timeoutId);
-      if (res.ok) {
-        const data = await res.json();
-        datamuseResults = data
-          .map(d => d.word.toUpperCase())
-          .filter(w => /^[A-Z]{5}$/.test(w));
-        if (pattern === '?????' && datamuseResults.length > 0) {
-          cachedProbePool = datamuseResults;
-        }
+// Helper: Build wildcard pattern for Datamuse (e.g. ?RA?E)
+function buildPattern(history) {
+  const pattern = ["?", "?", "?", "?", "?"];
+  for (const [guess, fb] of history) {
+    for (let i = 0; i < 5; i++) {
+      if (fb[i] === "G") {
+        pattern[i] = guess[i];
       }
-    } catch (err) {
-      clearTimeout(timeoutId);
-      console.warn("Datamuse API fetch failed or timed out, using fallback:", err);
+    }
+  }
+  return pattern.join("");
+}
+
+// Helper: Simulate Wordle feedback (GYB)
+function getFeedback(guess, answer) {
+  const result = ["B", "B", "B", "B", "B"];
+  const remaining = answer.split("");
+
+  // Pass 1: Greens
+  for (let i = 0; i < 5; i++) {
+    if (guess[i] === answer[i]) {
+      result[i] = "G";
+      remaining[i] = null;
     }
   }
 
-  // Filter local WORDLE_DICTIONARY matching pattern and merge with Datamuse results
-  const localMatches = WORDLE_DICTIONARY.filter(w => matchPattern(w, pattern));
-  const combined = Array.from(new Set([...localMatches, ...datamuseResults, ...TOP_OPENERS]))
-    .filter(w => /^[A-Z]{5}$/.test(w));
-  return combined;
+  // Pass 2: Yellows
+  for (let i = 0; i < 5; i++) {
+    if (result[i] === "G") continue;
+    const idx = remaining.indexOf(guess[i]);
+    if (idx !== -1) {
+      result[i] = "Y";
+      remaining[idx] = null;
+    }
+  }
+
+  return result.join("");
+}
+
+// Helper: Shannon Entropy Calculation
+function calculateEntropy(guess, candidates) {
+  const patternCounts = {};
+  for (const target of candidates) {
+    const pattern = getFeedback(guess, target);
+    patternCounts[pattern] = (patternCounts[pattern] || 0) + 1;
+  }
+
+  const total = candidates.length;
+  let ent = 0.0;
+  for (const count of Object.values(patternCounts)) {
+    const p = count / total;
+    ent -= p * Math.log2(p);
+  }
+  return ent;
+}
+
+// Helper: Natural English word score based on letter frequency distribution
+function getWordNaturalnessScore(word) {
+  const uniqueChars = [...new Set(word.split(''))];
+  return uniqueChars.reduce((sum, ch) => sum + (LETTER_WEIGHTS[ch] || 1.0), 0) / 100;
+}
+
+async function bestGuess(candidates, history = [], rejectedWords = new Set()) {
+  if (candidates.length === 1) return candidates[0];
+  if (candidates.length === 2) return candidates[0]; // 50/50 chance
+
+  let bestWord = null;
+  let bestScore = -1.0;
+
+  // 1. Evaluate candidate pool (entropy + candidate bonus + natural letter frequency score)
+  const pool = candidates.length <= 40 ? candidates : candidates.slice(0, 150);
+  for (const word of pool) {
+    const score = calculateEntropy(word, candidates) + 0.15 + getWordNaturalnessScore(word);
+    if (score > bestScore) {
+      bestWord = word;
+      bestScore = score;
+    }
+  }
+
+  // 2. If candidates >= 3 and <= 30, also evaluate non-candidate probe words
+  if (candidates.length >= 3 && candidates.length <= 30) {
+    const probeCandidates = await getProbeCandidates(history, rejectedWords);
+    for (const probe of probeCandidates) {
+      if (candidates.includes(probe)) continue;
+      const score = calculateEntropy(probe, candidates);
+      if (score > bestScore) {
+        bestWord = probe;
+        bestScore = score;
+        console.log(`💡 High-entropy non-candidate probe chosen: ${probe}`);
+      }
+    }
+  }
+
+  return bestWord || candidates[0];
+}
+
+// Helper: Get letters confirmed absent (seen as B, never as G or Y)
+function getAbsentLetters(history) {
+  const present = new Set();
+  const blackSeen = new Set();
+  for (const [guess, fb] of history) {
+    for (let i = 0; i < 5; i++) {
+      if (fb[i] === 'G' || fb[i] === 'Y') {
+        present.add(guess[i]);
+      } else {
+        blackSeen.add(guess[i]);
+      }
+    }
+  }
+  return new Set([...blackSeen].filter(l => !present.has(l)));
+}
+
+// Helper: Dynamic Probe Mode when Datamuse candidates = 0 (Requirement 3)
+// Tier 1: Form a valid 5-letter word using ONLY unattempted letters (0 assigned color letters).
+// Tier 2: If Tier 1 is unaccepted or empty, retry with a word having AT MOST 2 assigned color letters.
+// Tier 3: Retry fallback with any unguessed valid 5-letter word from Datamuse/TOP_OPENERS.
+async function getProbeGuess(history, rejectedWords = new Set()) {
+  const testedLetters = new Set();
+  const assignedColorLetters = new Set();
+
+  for (const [guess, fb] of history) {
+    for (let i = 0; i < 5; i++) {
+      testedLetters.add(guess[i]);
+      assignedColorLetters.add(guess[i]);
+    }
+  }
+
+  const untestedLetters = new Set(
+    'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').filter(l => !testedLetters.has(l))
+  );
+
+  let probePool = await fetchDatamuseWords('?????');
+  probePool = probePool.filter(w => /^[A-Z]{5}$/.test(w));
+
+  // Tier 1: Words formed from ONLY unattempted letters (0 assigned color letters)
+  let validProbes = probePool.filter(word =>
+    !rejectedWords.has(word) &&
+    !history.some(([g]) => g === word) &&
+    ![...word].some(ch => assignedColorLetters.has(ch)) &&
+    [...word].some(ch => untestedLetters.has(ch))
+  );
+
+  // Tier 2: Retry with a word that has AT MOST 2 letters assigned a color (B/Y/G)
+  if (validProbes.length === 0) {
+    validProbes = probePool.filter(word => {
+      if (rejectedWords.has(word) || history.some(([g]) => g === word)) return false;
+      const coloredCount = [...word].filter(ch => assignedColorLetters.has(ch)).length;
+      const hasUntested = [...word].some(ch => untestedLetters.has(ch));
+      return coloredCount <= 2 && hasUntested;
+    });
+  }
+
+  // Tier 3: General fallback from probePool or TOP_OPENERS
+  if (validProbes.length === 0) {
+    const fallbackPool = [...probePool, ...TOP_OPENERS, "FUDGY", "VEXED", "WALKS", "BUNCH", "PLUCK", "GLYPH"];
+    validProbes = fallbackPool.filter(word =>
+      !rejectedWords.has(word) &&
+      !history.some(([g]) => g === word)
+    );
+  }
+
+  // Absolute safety net
+  if (validProbes.length === 0) return "FUDGY";
+
+  // Score probe by sum of LETTER_WEIGHTS of its unattempted letters
+  let bestProbe = validProbes[0];
+  let bestScore = -1;
+  for (const word of validProbes) {
+    const uniqueChars = [...new Set(word.split(''))];
+    const score = uniqueChars
+      .filter(ch => untestedLetters.has(ch))
+      .reduce((sum, ch) => sum + (LETTER_WEIGHTS[ch] || 1.0), 0);
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestProbe = word;
+    }
+  }
+
+  return bestProbe;
 }
 
 // Helper: Build wildcard pattern for Datamuse (e.g. ?RA?E)
