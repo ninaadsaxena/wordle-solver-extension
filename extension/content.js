@@ -105,6 +105,16 @@ async function runSolver() {
         }
       }
 
+      // Anagram Permutation Solver: If 4+ letters are known and candidates = 0, generate exact 5-letter anagram permutations
+      if (candidates.length === 0 && revealedLetters.size >= 4) {
+        console.log(`🔎 4+ letters known — generating exact 5-letter anagram permutations...`);
+        const anagrams = getAnagramCandidates(history, rejectedWords);
+        if (anagrams.length > 0) {
+          candidates = anagrams;
+          console.log(`✨ Found ${candidates.length} candidate(s) via anagram permutation solver: ${candidates.join(', ')}`);
+        }
+      }
+
       let guess;
 
       if (turn === 0) {
@@ -127,10 +137,10 @@ async function runSolver() {
           guess = await bestGuess(candidates, history, rejectedWords);
         }
       } else if (candidates.length > 0) {
-        // Requirement 2 & 4: Normal Mode — use Shannon Entropy to pick optimal word from Datamuse candidates
+        // Requirement 2 & 4: Normal Mode — use Shannon Entropy to pick optimal word from candidates
         guess = await bestGuess(candidates, history, rejectedWords);
       } else {
-        // Requirement 3: Dynamic Probe Mode when Datamuse candidates = 0
+        // Requirement 3: Dynamic Probe Mode when candidates = 0
         console.warn("No live candidates found — switching to dynamic probe mode...");
         guess = await getProbeGuess(history, rejectedWords);
         console.log(`🔍 Probe guess: ${guess}`);
@@ -142,7 +152,7 @@ async function runSolver() {
       }
 
       console.log(`Bot guessing: ${guess} (${candidates.length} candidates left)`);
-      await typeGuess(guess);
+      await typeGuess(guess, turn);
       await sleep(600);
 
       // Check if Wordle rejected the guess (row didn't flip)
@@ -786,30 +796,112 @@ function isKeyboardOrBoardElement(el) {
   return false;
 }
 
-// DOM Helper: Type guess via key events
-async function typeGuess(word) {
-  for (const char of word) {
-    dispatchKey(char);
-    await sleep(100);
+// Helper: Anagram Permutation Candidate Generator when 4+ letters are known
+function getAnagramCandidates(history, rejectedWords = new Set()) {
+  const knownLetters = new Set();
+  for (const [guess, fb] of history) {
+    for (let i = 0; i < 5; i++) {
+      if (fb[i] === 'G' || fb[i] === 'Y') {
+        knownLetters.add(guess[i]);
+      }
+    }
   }
-  dispatchKey("Enter");
+
+  if (knownLetters.size < 4) return [];
+  const lettersArr = Array.from(knownLetters);
+
+  function permute(arr) {
+    if (arr.length <= 1) return [arr];
+    const result = [];
+    for (let i = 0; i < arr.length; i++) {
+      const cur = arr[i];
+      const rem = arr.slice(0, i).concat(arr.slice(i + 1));
+      for (const p of permute(rem)) {
+        result.push([cur, ...p]);
+      }
+    }
+    return result;
+  }
+
+  let perms = [];
+  if (lettersArr.length === 5) {
+    perms = permute(lettersArr).map(p => p.join(''));
+  } else {
+    const absent = getAbsentLetters(history);
+    const extraCandidates = ['E','T','A','O','I','N','S','H','R','D','L','C','U','M','W','F','G','Y','P','B','V','K'].filter(l => !absent.has(l) && !knownLetters.has(l));
+    for (const extra of extraCandidates) {
+      const set5 = [...lettersArr, extra];
+      const p5 = permute(set5).map(p => p.join(''));
+      perms.push(...p5);
+    }
+  }
+
+  const uniquePerms = Array.from(new Set(perms));
+  return uniquePerms.filter(c =>
+    !rejectedWords.has(c) &&
+    history.every(([g, fb]) => getFeedback(g, c) === fb)
+  );
+}
+
+// Reliable Key Dispatcher: Clicks Wordle virtual key button first, falls back to KeyboardEvent on window & document
+async function pressKey(char) {
+  const upper = char.toUpperCase();
+  const lower = char.toLowerCase();
+
+  const virtKey = document.querySelector(`button[data-key="${lower}"], button[data-key="${upper}"], [data-key="${lower}"], [data-key="${upper}"]`);
+  if (virtKey && virtKey.offsetWidth > 0) {
+    virtKey.click();
+    await sleep(60);
+    return;
+  }
+
+  const event = new KeyboardEvent("keydown", {
+    key: char,
+    code: char === "Enter" ? "Enter" : char === "Backspace" ? "Backspace" : `Key${upper}`,
+    bubbles: true,
+    cancelable: true
+  });
+  window.dispatchEvent(event);
+  document.dispatchEvent(event);
+  await sleep(60);
+}
+
+// DOM Helper: Bulletproof Type guess with 5-tile board length verification
+async function typeGuess(word, turnIndex = 0) {
+  await clearRow();
+  await sleep(100);
+
+  for (const char of word) {
+    await pressKey(char);
+    await sleep(90);
+  }
+
+  // Board length check: Ensure row has 5 letters typed before hitting Enter
+  const rows = getRowElements();
+  if (rows && rows[turnIndex]) {
+    const tiles = rows[turnIndex].querySelectorAll('[data-testid="tile"]');
+    const typedText = Array.from(tiles).map(t => (t.innerText || '').trim()).join('');
+    
+    if (typedText.length !== 5) {
+      console.warn(`Row letter mismatch: expected 5 letters for '${word}', but board has '${typedText}'. Retrying...`);
+      await clearRow();
+      await sleep(150);
+      for (const char of word) {
+        await pressKey(char);
+        await sleep(120);
+      }
+    }
+  }
+
+  await pressKey("Enter");
+  await sleep(1200); // Allow tile flip animation to finish completely before reading feedback
 }
 
 async function clearRow() {
   for (let i = 0; i < 5; i++) {
-    dispatchKey("Backspace");
-    await sleep(80);
+    await pressKey("Backspace");
+    await sleep(70);
   }
-}
-
-function dispatchKey(key) {
-  const event = new KeyboardEvent("keydown", {
-    key: key,
-    code: key === "Enter" ? "Enter" : key === "Backspace" ? "Backspace" : `Key${key.toUpperCase()}`,
-    bubbles: true,
-    cancelable: true
-  });
-  document.dispatchEvent(event);
 }
 
 function getRowElements() {
