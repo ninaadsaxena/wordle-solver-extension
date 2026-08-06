@@ -9,17 +9,28 @@ document.addEventListener('DOMContentLoaded', () => {
     runBtn.disabled = true;
 
     try {
-      // Find NYT Wordle tab
-      const tabs = await chrome.tabs.query({ url: 'https://www.nytimes.com/games/wordle/*' });
+      // 1. First check currently active tab
+      const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      let targetTab = null;
 
-      if (tabs.length > 0) {
-        const targetTab = tabs[0];
-        await chrome.tabs.update(targetTab.id, { active: true });
-        
+      if (activeTab && activeTab.url && activeTab.url.includes('nytimes.com/games/wordle')) {
+        targetTab = activeTab;
+      } else {
+        // 2. Otherwise query any open NYT Wordle tab (with or without www)
+        const tabs = await chrome.tabs.query({ url: '*://*.nytimes.com/games/wordle/*' });
+        const tabsNoWww = await chrome.tabs.query({ url: '*://nytimes.com/games/wordle/*' });
+        const allMatching = [...tabs, ...tabsNoWww];
+        if (allMatching.length > 0) {
+          targetTab = allMatching[0];
+          await chrome.tabs.update(targetTab.id, { active: true });
+        }
+      }
+
+      if (targetTab) {
         // Send message to content script to trigger solver
         chrome.tabs.sendMessage(targetTab.id, { action: 'START_SOLVER' }, (response) => {
           if (chrome.runtime.lastError) {
-            // Inject content script manually if needed
+            // Inject content script manually if script wasn't pre-injected
             chrome.scripting.executeScript({
               target: { tabId: targetTab.id },
               files: ['content.js']
@@ -30,7 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
       } else {
         // Create new tab to Wordle
-        const newTab = await chrome.tabs.create({ url: 'https://www.nytimes.com/games/wordle/index.html' });
+        await chrome.tabs.create({ url: 'https://www.nytimes.com/games/wordle/index.html' });
         statusText.innerText = 'Opening NYT Wordle...';
       }
     } catch (err) {
