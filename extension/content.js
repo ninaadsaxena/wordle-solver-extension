@@ -15,7 +15,9 @@ const TOP_OPENERS = [
   "SALET", "TRACE", "CRANE", "CRATE", "SLATE",
   "STARE", "RAISE", "SNARE", "AROSE", "LEAST",
   "ADIEU", "AUDIO", "ARISE", "HOUSE", "TRAIN",
-  "IRATE", "GREAT", "HEART", "DREAM", "OCEAN"
+  "IRATE", "GREAT", "HEART", "DREAM", "OCEAN",
+  "CLOUD", "PIZZA", "VENOM", "VIXEN", "ZEBRA",
+  "JAZZY", "KAYAK", "XYLEM", "QUARK", "CROWN"
 ];
 
 // English Letter Frequency weights

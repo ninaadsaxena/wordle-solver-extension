@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Wordle Auto-Solver",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Automatically plays and solves the daily NYT Wordle puzzle for you in one click.",
   "icons": {
     "16":  "icons/icon16.png",
